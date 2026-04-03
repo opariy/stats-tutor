@@ -67,7 +67,7 @@ Respond with ONLY a JSON array like ["topic-id-1", "topic-id-2"] or []. No expla
     let detectedTopics: string[] = [];
     try {
       // Extract JSON array from response
-      const match = content.text.match(/\[.*\]/s);
+      const match = content.text.match(/\[[\s\S]*\]/);
       if (match) {
         detectedTopics = JSON.parse(match[0]);
       }
