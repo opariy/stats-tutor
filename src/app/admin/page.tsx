@@ -1,9 +1,9 @@
 import { db } from "@/lib/db";
 import { users, messages, feedback } from "@/lib/db/schema";
-import { sql } from "drizzle-orm";
+import { sql, eq, desc } from "drizzle-orm";
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 import AdminLogin from "./admin-login";
+import AdminDashboard from "./admin-dashboard";
 
 async function getStats() {
   const [userStats] = await db
@@ -30,10 +30,75 @@ async function getStats() {
     })
     .from(feedback);
 
+  // Get feedback stats by group
+  const feedbackByGroup = await db
+    .select({
+      group: users.group,
+      thumbsUp: sql<number>`count(*) filter (where ${feedback.rating} = 'up')`,
+      thumbsDown: sql<number>`count(*) filter (where ${feedback.rating} = 'down')`,
+    })
+    .from(feedback)
+    .innerJoin(users, eq(feedback.userId, users.id))
+    .groupBy(users.group);
+
+  // Get messages per user by group
+  const messagesPerUserByGroup = await db
+    .select({
+      group: users.group,
+      avgMessages: sql<number>`round(count(${messages.id})::numeric / nullif(count(distinct ${users.id}), 0), 1)`,
+      totalUsers: sql<number>`count(distinct ${users.id})`,
+      totalMessages: sql<number>`count(${messages.id})`,
+    })
+    .from(messages)
+    .innerJoin(users, eq(messages.userId, users.id))
+    .where(eq(messages.role, "user"))
+    .groupBy(users.group);
+
+  // Get average response time by group
+  const responseTimeByGroup = await db
+    .select({
+      group: users.group,
+      avgResponseTime: sql<number>`round(avg(${messages.responseTimeMs}))`,
+    })
+    .from(messages)
+    .innerJoin(users, eq(messages.userId, users.id))
+    .where(sql`${messages.responseTimeMs} is not null`)
+    .groupBy(users.group);
+
+  // Get daily activity (last 7 days)
+  const dailyActivity = await db
+    .select({
+      date: sql<string>`to_char(${messages.createdAt}::date, 'MM/DD')`,
+      count: sql<number>`count(*)`,
+    })
+    .from(messages)
+    .where(sql`${messages.createdAt} >= now() - interval '7 days'`)
+    .groupBy(sql`${messages.createdAt}::date`)
+    .orderBy(sql`${messages.createdAt}::date`);
+
+  // Get recent participants
+  const recentUsers = await db
+    .select({
+      id: users.id,
+      group: users.group,
+      createdAt: users.createdAt,
+      messageCount: sql<number>`count(${messages.id})`,
+    })
+    .from(users)
+    .leftJoin(messages, eq(messages.userId, users.id))
+    .groupBy(users.id, users.group, users.createdAt)
+    .orderBy(desc(users.createdAt))
+    .limit(10);
+
   return {
     users: userStats,
     messages: messageStats,
     feedback: feedbackStats,
+    feedbackByGroup,
+    messagesPerUserByGroup,
+    responseTimeByGroup,
+    dailyActivity,
+    recentUsers,
   };
 }
 
@@ -52,76 +117,5 @@ export default async function AdminPage() {
 
   const stats = await getStats();
 
-  return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Stats 101 Admin</h1>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          {/* Users */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-2">
-              Participants
-            </h2>
-            <p className="text-3xl font-bold text-gray-900">{stats.users.total}</p>
-            <div className="mt-4 space-y-1 text-sm text-gray-600">
-              <p>Krokyo (Socratic): {stats.users.krokyo}</p>
-              <p>Control (Direct): {stats.users.control}</p>
-            </div>
-          </div>
-
-          {/* Messages */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-2">
-              Questions Asked
-            </h2>
-            <p className="text-3xl font-bold text-gray-900">{stats.messages.userMessages}</p>
-            <div className="mt-4 space-y-1 text-sm text-gray-600">
-              <p>Total messages: {stats.messages.total}</p>
-              <p>Responses: {stats.messages.assistantMessages}</p>
-            </div>
-          </div>
-
-          {/* Feedback */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-2">
-              Feedback
-            </h2>
-            <p className="text-3xl font-bold text-gray-900">{stats.feedback.total}</p>
-            <div className="mt-4 space-y-1 text-sm text-gray-600">
-              <p>Thumbs up: {stats.feedback.thumbsUp}</p>
-              <p>Thumbs down: {stats.feedback.thumbsDown}</p>
-              {stats.feedback.total > 0 && (
-                <p className="font-medium">
-                  Satisfaction:{" "}
-                  {Math.round((stats.feedback.thumbsUp / stats.feedback.total) * 100)}%
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Experiment Status</h2>
-          <div className="space-y-2 text-sm text-gray-600">
-            <p>
-              <span className="font-medium">Design:</span> Between-subjects (Krokyo vs Control)
-            </p>
-            <p>
-              <span className="font-medium">Krokyo group:</span> Socratic method (asks questions
-              before giving answers)
-            </p>
-            <p>
-              <span className="font-medium">Control group:</span> Direct answers (gives complete
-              explanations immediately)
-            </p>
-            <p>
-              <span className="font-medium">Assignment:</span> Random 50/50 split, persisted in
-              browser localStorage
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  return <AdminDashboard stats={stats} />;
 }
