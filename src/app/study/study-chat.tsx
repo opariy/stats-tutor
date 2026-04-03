@@ -51,7 +51,6 @@ export default function StudyChat() {
     setGroup(getOrAssignGroup());
     setSessionId(sid);
 
-    // Load chat history
     fetch(`/api/history?sessionId=${sid}`)
       .then((res) => res.json())
       .then((data) => {
@@ -86,8 +85,7 @@ export default function StudyChat() {
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
 
-    // If a topic is selected, prepend context to the message
-    let messageContent = input.trim();
+    const messageContent = input.trim();
     const topicContext = selectedTopic
       ? `[Topic: ${selectedTopic.name} - ${selectedTopic.description}]\n\n`
       : "";
@@ -152,7 +150,6 @@ export default function StudyChat() {
     }
   };
 
-  // Get assistant message index for feedback
   const getAssistantIndex = (messageIndex: number) => {
     let count = 0;
     for (let i = 0; i <= messageIndex; i++) {
@@ -163,9 +160,9 @@ export default function StudyChat() {
 
   if (isLoadingHistory) {
     return (
-      <div className="flex flex-col h-screen bg-white items-center justify-center">
-        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center animate-pulse">
-          <span className="text-sm">📊</span>
+      <div className="flex flex-col h-screen bg-stone-50 items-center justify-center">
+        <div className="w-12 h-12 bg-primary-gradient rounded-xl flex items-center justify-center animate-pulse shadow-soft-md">
+          <span className="text-xl">📊</span>
         </div>
       </div>
     );
@@ -175,7 +172,7 @@ export default function StudyChat() {
 
   if (!hasMessages) {
     return (
-      <div className="flex h-screen bg-white">
+      <div className="flex h-screen bg-stone-50">
         {/* Topic Picker Sidebar */}
         <div className="hidden md:block">
           <TopicPicker onSelectTopic={setSelectedTopic} selectedTopic={selectedTopic} />
@@ -184,10 +181,10 @@ export default function StudyChat() {
         {/* Main Content */}
         <div className="flex-1 flex flex-col">
           {/* Mobile Topic Toggle */}
-          <div className="md:hidden border-b border-gray-100 p-3">
+          <div className="md:hidden border-b border-stone-200 p-4 bg-white">
             <button
               onClick={() => setShowTopicPicker(!showTopicPicker)}
-              className="flex items-center gap-2 text-sm text-gray-600"
+              className="flex items-center gap-2 text-sm text-stone-600 font-medium"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -199,9 +196,9 @@ export default function StudyChat() {
           {/* Mobile Topic Picker */}
           {showTopicPicker && (
             <div className="md:hidden absolute inset-0 z-50 bg-white">
-              <div className="flex items-center justify-between p-4 border-b">
-                <h2 className="font-semibold">Select Topic</h2>
-                <button onClick={() => setShowTopicPicker(false)} className="text-gray-500">
+              <div className="flex items-center justify-between p-4 border-b border-stone-200">
+                <h2 className="font-display font-semibold text-stone-900">Select Topic</h2>
+                <button onClick={() => setShowTopicPicker(false)} className="text-stone-500 p-1">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
@@ -217,34 +214,42 @@ export default function StudyChat() {
             </div>
           )}
 
-          <div className="flex-1 flex flex-col items-center justify-center p-4">
-            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-              <span className="text-2xl">📊</span>
+          <div className="flex-1 flex flex-col items-center justify-center p-6">
+            {/* Avatar with gradient ring */}
+            <div className="relative mb-6">
+              <div className="absolute inset-0 bg-primary-gradient rounded-2xl blur-sm opacity-50 scale-110" />
+              <div className="relative w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-soft-md">
+                <span className="text-3xl">📊</span>
+              </div>
             </div>
-            <h1 className="text-xl font-semibold text-gray-900 mb-1">Stats 101 Exam Prep</h1>
-            <p className="text-gray-500 text-sm mb-2">Chapters 1-10</p>
+
+            <h1 className="font-display text-2xl font-bold text-stone-900 mb-2 tracking-tight">
+              Krokyo Tutor
+            </h1>
+            <p className="text-stone-500 text-sm mb-3">Chapters 1-10</p>
 
             {selectedTopic && (
-              <div className="bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full text-sm mb-4">
+              <div className="bg-teal-50 text-teal-700 px-4 py-2 rounded-full text-sm font-medium mb-6 border border-teal-100">
                 Focused on: {selectedTopic.name}
               </div>
             )}
 
-            <div className="w-full max-w-md">
-              <div className="flex gap-2">
+            <div className="w-full max-w-lg">
+              <div className="flex gap-3">
                 <input
                   type="text"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
                   placeholder={selectedTopic ? `Ask about ${selectedTopic.name}...` : "Ask a question..."}
-                  className="flex-1 border border-gray-200 rounded-full px-4 py-2.5 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  className="flex-1 border border-stone-200 rounded-full px-5 py-3 text-stone-900 placeholder-stone-400 focus:outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-600/10 text-sm bg-white shadow-soft-sm transition-all"
                   autoFocus
                 />
                 <button
                   onClick={handleSend}
                   disabled={!input.trim()}
-                  className="bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white p-2.5 rounded-full transition-colors"
+                  className="bg-primary-gradient disabled:opacity-40 text-white p-3 rounded-full transition-all hover:shadow-lg disabled:hover:shadow-none"
+                  style={{ boxShadow: input.trim() ? '0 4px 14px rgba(15, 118, 110, 0.3)' : undefined }}
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
@@ -253,23 +258,23 @@ export default function StudyChat() {
               </div>
             </div>
 
-            {/* Quick topic suggestions */}
-            <div className="mt-6 flex flex-wrap gap-2 justify-center max-w-md">
+            {/* Quick suggestions */}
+            <div className="mt-8 flex flex-wrap gap-2 justify-center max-w-lg">
               <button
                 onClick={() => setInput("What's the difference between Type I and Type II errors?")}
-                className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-full transition-colors"
+                className="text-xs bg-stone-100 hover:bg-teal-50 hover:text-teal-700 text-stone-600 px-4 py-2 rounded-full transition-colors font-medium"
               >
                 Type I vs Type II errors
               </button>
               <button
                 onClick={() => setInput("How do I know when to use a t-test vs z-test?")}
-                className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-full transition-colors"
+                className="text-xs bg-stone-100 hover:bg-teal-50 hover:text-teal-700 text-stone-600 px-4 py-2 rounded-full transition-colors font-medium"
               >
                 t-test vs z-test
               </button>
               <button
                 onClick={() => setInput("Explain confidence intervals")}
-                className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-full transition-colors"
+                className="text-xs bg-stone-100 hover:bg-teal-50 hover:text-teal-700 text-stone-600 px-4 py-2 rounded-full transition-colors font-medium"
               >
                 Confidence intervals
               </button>
@@ -281,7 +286,7 @@ export default function StudyChat() {
   }
 
   return (
-    <div className="flex h-screen bg-white">
+    <div className="flex h-screen bg-stone-50">
       {/* Topic Picker Sidebar */}
       <div className="hidden md:block">
         <TopicPicker onSelectTopic={setSelectedTopic} selectedTopic={selectedTopic} />
@@ -289,14 +294,18 @@ export default function StudyChat() {
 
       {/* Main Chat */}
       <div className="flex-1 flex flex-col">
-        <div className="border-b border-gray-100 px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-              <span className="text-sm">📊</span>
+        <div className="border-b border-stone-200 px-5 py-4 flex items-center justify-between bg-white shadow-soft-sm">
+          <div className="flex items-center gap-4">
+            {/* Avatar with gradient ring */}
+            <div className="relative">
+              <div className="absolute inset-0 bg-primary-gradient rounded-xl scale-110 opacity-80" />
+              <div className="relative w-10 h-10 bg-white rounded-xl flex items-center justify-center">
+                <span className="text-lg">📊</span>
+              </div>
             </div>
             <div>
-              <h1 className="text-sm font-medium text-gray-900">Stats Tutor</h1>
-              <p className="text-xs text-gray-500">
+              <h1 className="font-display text-sm font-semibold text-stone-900">Krokyo Tutor</h1>
+              <p className="text-xs text-stone-500">
                 {selectedTopic ? selectedTopic.name : "Chapters 1-10"}
               </p>
             </div>
@@ -305,7 +314,7 @@ export default function StudyChat() {
           {/* Mobile topic toggle */}
           <button
             onClick={() => setShowTopicPicker(!showTopicPicker)}
-            className="md:hidden p-2 text-gray-500 hover:bg-gray-100 rounded-lg"
+            className="md:hidden p-2 text-stone-500 hover:bg-stone-100 rounded-lg transition-colors"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -316,9 +325,9 @@ export default function StudyChat() {
         {/* Mobile Topic Picker Overlay */}
         {showTopicPicker && (
           <div className="md:hidden absolute inset-0 z-50 bg-white">
-            <div className="flex items-center justify-between p-4 border-b">
-              <h2 className="font-semibold">Select Topic</h2>
-              <button onClick={() => setShowTopicPicker(false)} className="text-gray-500">
+            <div className="flex items-center justify-between p-4 border-b border-stone-200">
+              <h2 className="font-display font-semibold text-stone-900">Select Topic</h2>
+              <button onClick={() => setShowTopicPicker(false)} className="text-stone-500 p-1">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -334,27 +343,30 @@ export default function StudyChat() {
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto px-4 py-4">
+        <div className="flex-1 overflow-y-auto px-5 py-6 bg-gradient-to-b from-stone-50 to-white">
           {messages.map((msg, i) => {
             const assistantIdx = msg.role === "assistant" ? getAssistantIndex(i) : -1;
             const feedback = assistantIdx >= 0 ? feedbackGiven[assistantIdx] : undefined;
 
             return (
-              <div key={i} className={`mb-4 ${msg.role === "user" ? "text-right" : ""}`}>
+              <div key={i} className={`mb-6 ${msg.role === "user" ? "text-right" : ""}`}>
                 {msg.role === "assistant" && (
-                  <div className="flex items-start gap-2">
-                    <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span className="text-xs">📊</span>
+                  <div className="flex items-start gap-3">
+                    <div className="relative flex-shrink-0 mt-0.5">
+                      <div className="absolute inset-0 bg-primary-gradient rounded-lg scale-110 opacity-80" />
+                      <div className="relative w-8 h-8 bg-white rounded-lg flex items-center justify-center">
+                        <span className="text-sm">📊</span>
+                      </div>
                     </div>
-                    <div className="flex flex-col gap-1">
-                      <div className="bg-gray-50 rounded-2xl rounded-tl-sm px-4 py-2.5 max-w-[85%] text-sm text-gray-800">
+                    <div className="flex flex-col gap-2">
+                      <div className="bg-white rounded-2xl rounded-tl-md px-5 py-3 max-w-[85%] text-sm text-stone-800 border border-stone-200 shadow-soft-sm">
                         <ReactMarkdown
                           components={{
-                            p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                            ul: ({ children }) => <ul className="list-disc ml-4 mb-2">{children}</ul>,
-                            ol: ({ children }) => <ol className="list-decimal ml-4 mb-2">{children}</ol>,
+                            p: ({ children }) => <p className="mb-3 last:mb-0 leading-relaxed">{children}</p>,
+                            ul: ({ children }) => <ul className="list-disc ml-4 mb-3">{children}</ul>,
+                            ol: ({ children }) => <ol className="list-decimal ml-4 mb-3">{children}</ol>,
                             code: ({ children }) => (
-                              <code className="bg-gray-200 px-1 rounded text-sm">{children}</code>
+                              <code className="bg-teal-50 text-teal-700 px-1.5 py-0.5 rounded text-sm font-mono border border-teal-100">{children}</code>
                             ),
                           }}
                         >
@@ -366,12 +378,12 @@ export default function StudyChat() {
                         <button
                           onClick={() => handleFeedback(assistantIdx, "up")}
                           disabled={!!feedback}
-                          className={`p-1 rounded transition-colors ${
+                          className={`p-1.5 rounded-lg transition-all ${
                             feedback === "up"
-                              ? "text-green-600"
+                              ? "text-teal-600 bg-teal-50"
                               : feedback
-                              ? "text-gray-300"
-                              : "text-gray-400 hover:text-green-600"
+                              ? "text-stone-300"
+                              : "text-stone-400 hover:text-teal-600 hover:bg-teal-50"
                           }`}
                           title="Helpful"
                         >
@@ -382,12 +394,12 @@ export default function StudyChat() {
                         <button
                           onClick={() => handleFeedback(assistantIdx, "down")}
                           disabled={!!feedback}
-                          className={`p-1 rounded transition-colors ${
+                          className={`p-1.5 rounded-lg transition-all ${
                             feedback === "down"
-                              ? "text-red-600"
+                              ? "text-red-500 bg-red-50"
                               : feedback
-                              ? "text-gray-300"
-                              : "text-gray-400 hover:text-red-600"
+                              ? "text-stone-300"
+                              : "text-stone-400 hover:text-red-500 hover:bg-red-50"
                           }`}
                           title="Not helpful"
                         >
@@ -400,7 +412,7 @@ export default function StudyChat() {
                   </div>
                 )}
                 {msg.role === "user" && (
-                  <div className="inline-block bg-blue-600 text-white rounded-2xl rounded-tr-sm px-4 py-2.5 max-w-[85%] text-sm">
+                  <div className="inline-block bg-primary-gradient text-white rounded-2xl rounded-tr-md px-5 py-3 max-w-[85%] text-sm shadow-soft-md">
                     {msg.content}
                   </div>
                 )}
@@ -408,15 +420,18 @@ export default function StudyChat() {
             );
           })}
           {isLoading && messages[messages.length - 1]?.role !== "assistant" && (
-            <div className="flex items-start gap-2 mb-4">
-              <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                <span className="text-xs">📊</span>
+            <div className="flex items-start gap-3 mb-6">
+              <div className="relative flex-shrink-0">
+                <div className="absolute inset-0 bg-primary-gradient rounded-lg scale-110 opacity-80" />
+                <div className="relative w-8 h-8 bg-white rounded-lg flex items-center justify-center">
+                  <span className="text-sm">📊</span>
+                </div>
               </div>
-              <div className="bg-gray-50 rounded-2xl rounded-tl-sm px-4 py-2.5 text-sm text-gray-500">
+              <div className="bg-white rounded-2xl rounded-tl-md px-5 py-3 text-sm text-stone-500 border border-stone-200 shadow-soft-sm">
                 <span className="inline-flex gap-1">
                   <span className="animate-pulse">•</span>
-                  <span className="animate-pulse delay-100">•</span>
-                  <span className="animate-pulse delay-200">•</span>
+                  <span className="animate-pulse" style={{ animationDelay: '150ms' }}>•</span>
+                  <span className="animate-pulse" style={{ animationDelay: '300ms' }}>•</span>
                 </span>
               </div>
             </div>
@@ -424,20 +439,21 @@ export default function StudyChat() {
           <div ref={messagesEndRef} />
         </div>
 
-        <div className="border-t border-gray-100 p-4">
-          <div className="flex gap-2 max-w-2xl mx-auto">
+        <div className="border-t border-stone-200 p-5 bg-white">
+          <div className="flex gap-3 max-w-2xl mx-auto">
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
               placeholder={selectedTopic ? `Ask about ${selectedTopic.name}...` : "Ask a question..."}
-              className="flex-1 border border-gray-200 rounded-full px-4 py-2.5 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              className="flex-1 border border-stone-200 rounded-full px-5 py-3 text-stone-900 placeholder-stone-400 focus:outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-600/10 text-sm bg-stone-50 transition-all"
             />
             <button
               onClick={handleSend}
               disabled={isLoading || !input.trim()}
-              className="bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white p-2.5 rounded-full transition-colors"
+              className="bg-primary-gradient disabled:opacity-40 text-white p-3 rounded-full transition-all hover:shadow-lg disabled:hover:shadow-none"
+              style={{ boxShadow: !isLoading && input.trim() ? '0 4px 14px rgba(15, 118, 110, 0.3)' : undefined }}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />

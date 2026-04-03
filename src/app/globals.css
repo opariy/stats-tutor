@@ -1,26 +1,134 @@
 @import "tailwindcss";
 
+/* Krokyo Design System */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Colors - Primary */
+  --primary: #0F766E;
+  --primary-light: #14B8A6;
+  --primary-lighter: #2DD4BF;
+
+  /* Colors - Accent */
+  --accent: #D97706;
+  --accent-light: #F59E0B;
+
+  /* Colors - Stone Neutrals */
+  --stone-950: #0C0A09;
+  --stone-900: #1C1917;
+  --stone-800: #292524;
+  --stone-700: #44403C;
+  --stone-600: #57534E;
+  --stone-500: #78716C;
+  --stone-400: #A8A29E;
+  --stone-300: #D6D3D1;
+  --stone-200: #E7E5E4;
+  --stone-100: #F5F5F4;
+  --stone-50: #FAFAF9;
+
+  /* Semantic Colors */
+  --background: var(--stone-50);
+  --surface: #FFFFFF;
+  --text-primary: var(--stone-900);
+  --text-secondary: var(--stone-600);
+  --text-muted: var(--stone-500);
+  --border: var(--stone-200);
+
+  /* Semantic - States */
+  --success: #10B981;
+  --warning: #F59E0B;
+  --error: #EF4444;
+  --info: #3B82F6;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(28, 25, 23, 0.04);
+  --shadow-md: 0 4px 12px rgba(28, 25, 23, 0.06);
+  --shadow-lg: 0 8px 24px rgba(28, 25, 23, 0.08);
+}
+
+/* Dark mode */
+.dark {
+  --background: var(--stone-950);
+  --surface: var(--stone-900);
+  --text-primary: var(--stone-100);
+  --text-secondary: var(--stone-400);
+  --text-muted: var(--stone-500);
+  --border: var(--stone-800);
+  --primary-light: #2DD4BF;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  /* Typography */
+  --font-display: 'Satoshi', var(--font-body), system-ui, sans-serif;
+  --font-body: var(--font-body), 'DM Sans', system-ui, sans-serif;
+  --font-mono: var(--font-mono), 'JetBrains Mono', monospace;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* Colors for Tailwind */
+  --color-primary: var(--primary);
+  --color-primary-light: var(--primary-light);
+  --color-primary-lighter: var(--primary-lighter);
+  --color-accent: var(--accent);
+  --color-accent-light: var(--accent-light);
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+
+  /* Semantic */
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-error: var(--error);
+  --color-info: var(--info);
 }
 
 body {
   background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  color: var(--text-primary);
+  font-family: 'DM Sans', system-ui, sans-serif;
+}
+
+/* Utility classes for the design system */
+.font-display {
+  font-family: 'Satoshi', 'DM Sans', system-ui, sans-serif;
+}
+
+.font-body {
+  font-family: 'DM Sans', system-ui, sans-serif;
+}
+
+.font-mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Primary gradient */
+.bg-primary-gradient {
+  background: linear-gradient(135deg, var(--primary), var(--primary-light));
+}
+
+/* Text gradient for logo */
+.text-primary-gradient {
+  background: linear-gradient(135deg, var(--primary), var(--primary-light));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Shadows */
+.shadow-soft-sm {
+  box-shadow: var(--shadow-sm);
+}
+
+.shadow-soft-md {
+  box-shadow: var(--shadow-md);
+}
+
+.shadow-soft-lg {
+  box-shadow: var(--shadow-lg);
+}
+
+/* Focus ring */
+.focus-ring {
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.1);
+  border-color: var(--primary);
 }

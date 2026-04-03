@@ -12,10 +12,10 @@ export default function TopicPicker({ onSelectTopic, selectedTopic }: TopicPicke
   const [expandedChapter, setExpandedChapter] = useState<number | null>(null);
 
   return (
-    <div className="bg-white border-r border-gray-200 w-72 flex flex-col h-full">
-      <div className="p-4 border-b border-gray-100">
-        <h2 className="text-sm font-semibold text-gray-900">Topics</h2>
-        <p className="text-xs text-gray-500 mt-1">Select a topic to focus your study</p>
+    <div className="bg-white border-r border-stone-200 w-72 flex flex-col h-full">
+      <div className="p-5 border-b border-stone-100">
+        <h2 className="font-display text-sm font-semibold text-stone-900">Topics</h2>
+        <p className="text-xs text-stone-500 mt-1">Select a topic to focus your study</p>
       </div>
 
       {/* General Chat Option */}
@@ -24,13 +24,13 @@ export default function TopicPicker({ onSelectTopic, selectedTopic }: TopicPicke
           onSelectTopic(null);
           setExpandedChapter(null);
         }}
-        className={`w-full text-left px-4 py-3 text-sm border-b border-gray-100 transition-colors ${
+        className={`w-full text-left px-5 py-4 text-sm border-b border-stone-100 transition-all ${
           selectedTopic === null
-            ? "bg-blue-50 text-blue-700 font-medium"
-            : "text-gray-700 hover:bg-gray-50"
+            ? "bg-teal-50 text-teal-700 font-medium"
+            : "text-stone-700 hover:bg-stone-50"
         }`}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               strokeLinecap="round"
@@ -41,27 +41,27 @@ export default function TopicPicker({ onSelectTopic, selectedTopic }: TopicPicke
           </svg>
           General Questions
         </div>
-        <p className="text-xs text-gray-500 mt-0.5 ml-6">Ask about any topic</p>
+        <p className="text-xs text-stone-500 mt-1 ml-7">Ask about any topic</p>
       </button>
 
       {/* Chapter List */}
       <div className="flex-1 overflow-y-auto">
         {chapters.map((chapter) => (
-          <div key={chapter.number} className="border-b border-gray-100">
+          <div key={chapter.number} className="border-b border-stone-100">
             <button
               onClick={() =>
                 setExpandedChapter(expandedChapter === chapter.number ? null : chapter.number)
               }
-              className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
+              className="w-full text-left px-5 py-4 flex items-center justify-between hover:bg-stone-50 transition-colors"
             >
-              <div className="flex items-center gap-2">
-                <span className="w-6 h-6 rounded bg-gray-100 text-gray-600 text-xs font-medium flex items-center justify-center">
+              <div className="flex items-center gap-3">
+                <span className="w-7 h-7 rounded-lg bg-stone-100 text-stone-600 text-xs font-semibold flex items-center justify-center">
                   {chapter.number}
                 </span>
-                <span className="text-sm text-gray-900">{chapter.title}</span>
+                <span className="text-sm text-stone-900 font-medium">{chapter.title}</span>
               </div>
               <svg
-                className={`w-4 h-4 text-gray-400 transition-transform ${
+                className={`w-4 h-4 text-stone-400 transition-transform ${
                   expandedChapter === chapter.number ? "rotate-180" : ""
                 }`}
                 fill="none"
@@ -73,15 +73,15 @@ export default function TopicPicker({ onSelectTopic, selectedTopic }: TopicPicke
             </button>
 
             {expandedChapter === chapter.number && (
-              <div className="bg-gray-50 pb-2">
+              <div className="bg-stone-50 pb-2">
                 {chapter.topics.map((topic) => (
                   <button
                     key={topic.id}
                     onClick={() => onSelectTopic(topic)}
-                    className={`w-full text-left px-4 py-2 pl-12 text-sm transition-colors ${
+                    className={`w-full text-left px-5 py-2.5 pl-14 text-sm transition-all ${
                       selectedTopic?.id === topic.id
-                        ? "bg-blue-100 text-blue-700 font-medium"
-                        : "text-gray-600 hover:bg-gray-100"
+                        ? "bg-teal-100 text-teal-700 font-medium"
+                        : "text-stone-600 hover:bg-stone-100"
                     }`}
                   >
                     {topic.name}
@@ -95,12 +95,12 @@ export default function TopicPicker({ onSelectTopic, selectedTopic }: TopicPicke
 
       {/* Selected Topic Info */}
       {selectedTopic && (
-        <div className="p-4 border-t border-gray-200 bg-blue-50">
-          <p className="text-xs text-blue-600 font-medium uppercase tracking-wide">
+        <div className="p-5 border-t border-stone-200 bg-teal-50">
+          <p className="text-xs text-teal-600 font-semibold uppercase tracking-wider">
             Focused on
           </p>
-          <p className="text-sm font-semibold text-blue-900 mt-1">{selectedTopic.name}</p>
-          <p className="text-xs text-blue-700 mt-1">{selectedTopic.description}</p>
+          <p className="text-sm font-semibold text-teal-900 mt-1">{selectedTopic.name}</p>
+          <p className="text-xs text-teal-700 mt-1 leading-relaxed">{selectedTopic.description}</p>
         </div>
       )}
     </div>
