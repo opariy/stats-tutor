@@ -26,9 +26,14 @@ async function getOrCreateUser(sessionId: string, group: "krokyo" | "control") {
 
 export async function POST(request: NextRequest) {
   try {
-    const { messages: chatMessages, group = "krokyo", sessionId } = await request.json();
+    const { messages: chatMessages, group = "krokyo", sessionId, topicContext } = await request.json();
 
-    const systemPrompt = getPromptForGroup(group as "krokyo" | "control");
+    let systemPrompt = getPromptForGroup(group as "krokyo" | "control");
+
+    // Add topic context if provided
+    if (topicContext) {
+      systemPrompt += `\n\nCURRENT FOCUS: The student is studying a specific topic. ${topicContext}Focus your responses on this topic while staying within your tutoring guidelines.`;
+    }
     const startTime = Date.now();
 
     // Get or create user for logging

@@ -127,6 +127,44 @@ function SatisfactionGauge({ thumbsUp, thumbsDown }: { thumbsUp: number; thumbsD
   );
 }
 
+function ExportButtons() {
+  const handleExport = (type: string) => {
+    window.open(`/api/admin/export?type=${type}`, "_blank");
+  };
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      <button
+        onClick={() => handleExport("all")}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+        Export All (CSV)
+      </button>
+      <button
+        onClick={() => handleExport("users")}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors"
+      >
+        Users
+      </button>
+      <button
+        onClick={() => handleExport("messages")}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors"
+      >
+        Messages
+      </button>
+      <button
+        onClick={() => handleExport("feedback")}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors"
+      >
+        Feedback
+      </button>
+    </div>
+  );
+}
+
 export default function AdminDashboard({ stats }: { stats: Stats }) {
   const krokyoFeedback = stats.feedbackByGroup.find((f) => f.group === "krokyo");
   const controlFeedback = stats.feedbackByGroup.find((f) => f.group === "control");
@@ -149,9 +187,12 @@ export default function AdminDashboard({ stats }: { stats: Stats }) {
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Stats 101 Admin</h1>
-          <span className="text-sm text-gray-500">Experiment Dashboard</span>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Stats 101 Admin</h1>
+            <span className="text-sm text-gray-500">Experiment Dashboard</span>
+          </div>
+          <ExportButtons />
         </div>
 
         {/* Top Stats */}
