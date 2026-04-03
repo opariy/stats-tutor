@@ -1,8 +1,11 @@
 import { neon } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
+import { config } from "dotenv";
 import { systemPrompts, chapters, topics } from "./schema";
 import { KROKYO_PROMPT, CONTROL_PROMPT } from "../prompts";
 import { chapters as chaptersData } from "../topics";
+
+config({ path: ".env.local" });
 
 const sql = neon(process.env.DATABASE_URL!);
 const db = drizzle(sql);

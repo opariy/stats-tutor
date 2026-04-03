@@ -1,11 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, users, messages } from "@/lib/db";
-import { eq, asc } from "drizzle-orm";
+import { db, users, messages, conversations } from "@/lib/db";
+import { eq, asc, and } from "drizzle-orm";
 
+// GET /api/history?conversationId=xxx OR ?sessionId=xxx (legacy)
 export async function GET(request: NextRequest) {
   try {
+    const conversationId = request.nextUrl.searchParams.get("conversationId");
     const sessionId = request.nextUrl.searchParams.get("sessionId");
 
+    // New conversation-based flow
+    if (conversationId) {
+      const history = await db
+        .select({
+          role: messages.role,
+          content: messages.content,
+        })
+        .from(messages)
+        .where(eq(messages.conversationId, conversationId))
+        .orderBy(asc(messages.createdAt));
+
+      return NextResponse.json({ messages: history });
+    }
+
+    // Legacy sessionId flow (backward compatible)
     if (!sessionId) {
       return NextResponse.json({ messages: [] });
     }
@@ -20,13 +37,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ messages: [] });
     }
 
+    // For legacy: return all messages without conversationId
     const history = await db
       .select({
         role: messages.role,
         content: messages.content,
       })
       .from(messages)
-      .where(eq(messages.userId, user.id))
+      .where(and(eq(messages.userId, user.id)))
       .orderBy(asc(messages.createdAt));
 
     return NextResponse.json({ messages: history });

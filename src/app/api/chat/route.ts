@@ -1,8 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
 import { getPromptForGroup } from "@/lib/prompts";
-import { db, users, messages } from "@/lib/db";
-import { eq } from "drizzle-orm";
+import { db, users, messages, conversations } from "@/lib/db";
+import { eq, sql } from "drizzle-orm";
 
 const anthropic = new Anthropic();
 
@@ -26,7 +26,7 @@ async function getOrCreateUser(sessionId: string, group: "krokyo" | "control") {
 
 export async function POST(request: NextRequest) {
   try {
-    const { messages: chatMessages, group = "krokyo", sessionId, topicContext } = await request.json();
+    const { messages: chatMessages, group = "krokyo", sessionId, conversationId, topicContext } = await request.json();
 
     let systemPrompt = getPromptForGroup(group as "krokyo" | "control");
 
@@ -41,14 +41,23 @@ export async function POST(request: NextRequest) {
     if (sessionId) {
       user = await getOrCreateUser(sessionId, group as "krokyo" | "control");
 
-      // Log user's message
+      // Log user's message with conversationId
       const lastUserMessage = chatMessages[chatMessages.length - 1];
       if (lastUserMessage?.role === "user") {
         await db.insert(messages).values({
           userId: user.id,
+          conversationId: conversationId || null,
           role: "user",
           content: lastUserMessage.content,
         });
+      }
+
+      // Update conversation's updated_at timestamp
+      if (conversationId) {
+        await db
+          .update(conversations)
+          .set({ updatedAt: sql`NOW()` })
+          .where(eq(conversations.id, conversationId));
       }
     }
 
@@ -80,6 +89,7 @@ export async function POST(request: NextRequest) {
             const responseTimeMs = Date.now() - startTime;
             await db.insert(messages).values({
               userId: user.id,
+              conversationId: conversationId || null,
               role: "assistant",
               content: fullText,
               responseTimeMs,

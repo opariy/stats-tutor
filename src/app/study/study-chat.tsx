@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import TopicPicker from "./topic-picker";
 import { type Topic } from "@/lib/topics";
@@ -8,6 +8,15 @@ import { type Topic } from "@/lib/topics";
 type Message = {
   role: "user" | "assistant";
   content: string;
+};
+
+type Conversation = {
+  id: string;
+  topicId: string | null;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  messageCount: number;
 };
 
 function getOrCreateSessionId(): string {
@@ -34,6 +43,20 @@ function getOrAssignGroup(): "krokyo" | "control" {
   return group;
 }
 
+function getStoredConversationId(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("stats-tutor-active-conversation");
+}
+
+function setStoredConversationId(id: string | null): void {
+  if (typeof window === "undefined") return;
+  if (id) {
+    localStorage.setItem("stats-tutor-active-conversation", id);
+  } else {
+    localStorage.removeItem("stats-tutor-active-conversation");
+  }
+}
+
 export default function StudyChat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -41,26 +64,80 @@ export default function StudyChat() {
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [group, setGroup] = useState<"krokyo" | "control">("krokyo");
   const [sessionId, setSessionId] = useState("");
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const [feedbackGiven, setFeedbackGiven] = useState<Record<number, "up" | "down">>({});
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
   const [showTopicPicker, setShowTopicPicker] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Load conversation history for a given conversation
+  const loadConversationHistory = useCallback(async (convId: string) => {
+    try {
+      const res = await fetch(`/api/history?conversationId=${convId}`);
+      const data = await res.json();
+      setMessages(data.messages || []);
+      setFeedbackGiven({});
+    } catch (error) {
+      console.error("Failed to load conversation history:", error);
+      setMessages([]);
+    }
+  }, []);
+
+  // Create or resume conversation for a topic
+  const getOrCreateConversation = useCallback(async (sid: string, topicId: string | null) => {
+    try {
+      // First, check for existing conversations for this topic
+      const listRes = await fetch(`/api/conversations?sessionId=${sid}${topicId ? `&topicId=${topicId}` : ''}`);
+      const listData = await listRes.json();
+
+      if (listData.conversations?.length > 0) {
+        // Resume the most recent conversation (already sorted by updated_at desc)
+        const conv = listData.conversations[0];
+        setConversationId(conv.id);
+        setStoredConversationId(conv.id);
+        await loadConversationHistory(conv.id);
+        return conv.id;
+      }
+
+      // No existing conversation, create a new one
+      const createRes = await fetch('/api/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: sid, topicId, group }),
+      });
+      const createData = await createRes.json();
+
+      if (createData.conversation) {
+        setConversationId(createData.conversation.id);
+        setStoredConversationId(createData.conversation.id);
+        setMessages([]);
+        setFeedbackGiven({});
+        return createData.conversation.id;
+      }
+      return null;
+    } catch (error) {
+      console.error("Failed to get/create conversation:", error);
+      return null;
+    }
+  }, [group, loadConversationHistory]);
+
+  // Initial load
   useEffect(() => {
     const sid = getOrCreateSessionId();
     setGroup(getOrAssignGroup());
     setSessionId(sid);
 
-    fetch(`/api/history?sessionId=${sid}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.messages?.length > 0) {
-          setMessages(data.messages);
-        }
-      })
-      .catch(console.error)
-      .finally(() => setIsLoadingHistory(false));
-  }, []);
+    const storedConvId = getStoredConversationId();
+
+    if (storedConvId) {
+      // Resume stored conversation
+      setConversationId(storedConvId);
+      loadConversationHistory(storedConvId).finally(() => setIsLoadingHistory(false));
+    } else {
+      // No stored conversation, start fresh
+      setIsLoadingHistory(false);
+    }
+  }, [loadConversationHistory]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -82,6 +159,51 @@ export default function StudyChat() {
     }
   };
 
+  // Handle topic selection - creates/resumes conversation for that topic
+  const handleTopicSelect = useCallback(async (topic: Topic | null) => {
+    setSelectedTopic(topic);
+    setIsLoadingHistory(true);
+
+    if (!sessionId) {
+      setIsLoadingHistory(false);
+      return;
+    }
+
+    await getOrCreateConversation(sessionId, topic?.id || null);
+    setIsLoadingHistory(false);
+  }, [sessionId, getOrCreateConversation]);
+
+  // Create a new conversation for the current topic
+  const handleNewConversation = useCallback(async () => {
+    if (!sessionId) return;
+
+    setIsLoadingHistory(true);
+
+    try {
+      const createRes = await fetch('/api/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId,
+          topicId: selectedTopic?.id || null,
+          group,
+        }),
+      });
+      const createData = await createRes.json();
+
+      if (createData.conversation) {
+        setConversationId(createData.conversation.id);
+        setStoredConversationId(createData.conversation.id);
+        setMessages([]);
+        setFeedbackGiven({});
+      }
+    } catch (error) {
+      console.error("Failed to create new conversation:", error);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  }, [sessionId, selectedTopic, group]);
+
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
 
@@ -89,6 +211,12 @@ export default function StudyChat() {
     const topicContext = selectedTopic
       ? `[Topic: ${selectedTopic.name} - ${selectedTopic.description}]\n\n`
       : "";
+
+    // Ensure we have a conversation before sending
+    let currentConvId = conversationId;
+    if (!currentConvId && sessionId) {
+      currentConvId = await getOrCreateConversation(sessionId, selectedTopic?.id || null);
+    }
 
     const userMessage: Message = { role: "user", content: messageContent };
     const newMessages = [...messages, userMessage];
@@ -104,6 +232,7 @@ export default function StudyChat() {
           messages: newMessages,
           group,
           sessionId,
+          conversationId: currentConvId,
           topicContext: selectedTopic ? topicContext : undefined,
         }),
       });
@@ -175,7 +304,7 @@ export default function StudyChat() {
       <div className="flex h-screen bg-stone-50">
         {/* Topic Picker Sidebar */}
         <div className="hidden md:block">
-          <TopicPicker onSelectTopic={setSelectedTopic} selectedTopic={selectedTopic} />
+          <TopicPicker onSelectTopic={handleTopicSelect} selectedTopic={selectedTopic} />
         </div>
 
         {/* Main Content */}
@@ -206,7 +335,7 @@ export default function StudyChat() {
               </div>
               <TopicPicker
                 onSelectTopic={(topic) => {
-                  setSelectedTopic(topic);
+                  handleTopicSelect(topic);
                   setShowTopicPicker(false);
                 }}
                 selectedTopic={selectedTopic}
@@ -289,7 +418,7 @@ export default function StudyChat() {
     <div className="flex h-screen bg-stone-50">
       {/* Topic Picker Sidebar */}
       <div className="hidden md:block">
-        <TopicPicker onSelectTopic={setSelectedTopic} selectedTopic={selectedTopic} />
+        <TopicPicker onSelectTopic={handleTopicSelect} selectedTopic={selectedTopic} />
       </div>
 
       {/* Main Chat */}
@@ -312,22 +441,18 @@ export default function StudyChat() {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Clear chat button */}
+            {/* New conversation button */}
             <button
               onClick={() => {
-                if (confirm("Start a new conversation? This will clear your chat history.")) {
-                  setMessages([]);
-                  localStorage.removeItem("stats-tutor-session");
-                  const newSessionId = crypto.randomUUID();
-                  localStorage.setItem("stats-tutor-session", newSessionId);
-                  setSessionId(newSessionId);
+                if (confirm("Start a new conversation? Your current conversation will be saved.")) {
+                  handleNewConversation();
                 }
               }}
               className="p-2 text-stone-400 hover:text-stone-600 hover:bg-stone-100 rounded-lg transition-colors"
               title="New conversation"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
             </button>
 
@@ -356,7 +481,7 @@ export default function StudyChat() {
             </div>
             <TopicPicker
               onSelectTopic={(topic) => {
-                setSelectedTopic(topic);
+                handleTopicSelect(topic);
                 setShowTopicPicker(false);
               }}
               selectedTopic={selectedTopic}

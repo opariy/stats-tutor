@@ -60,8 +60,30 @@ async function migrate() {
   `;
   console.log("- feedback table created");
 
+  // Conversations table for topic-based chat management
+  await sql`
+    CREATE TABLE IF NOT EXISTS conversations (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id),
+      topic_id TEXT,
+      title TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+      updated_at TIMESTAMP DEFAULT NOW() NOT NULL
+    )
+  `;
+  console.log("- conversations table created");
+
+  // Add conversation_id column to messages if it doesn't exist
+  await sql`
+    ALTER TABLE messages ADD COLUMN IF NOT EXISTS conversation_id UUID REFERENCES conversations(id)
+  `;
+  console.log("- conversation_id added to messages");
+
   await sql`CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_messages_user_id ON messages(user_id)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_conversations_user_topic ON conversations(user_id, topic_id)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_conversations_updated ON conversations(updated_at DESC)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id)`;
   console.log("- indexes created");
 
   console.log("Migration complete!");

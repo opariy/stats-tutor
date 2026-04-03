@@ -1,0 +1,120 @@
+import { NextRequest, NextResponse } from "next/server";
+import { db, users, conversations, messages } from "@/lib/db";
+import { eq, and, desc, sql, count } from "drizzle-orm";
+
+// Get user from sessionId
+async function getUserFromSession(sessionId: string) {
+  const email = `anon-${sessionId}@stats-tutor.local`;
+  return db.query.users.findFirst({
+    where: eq(users.email, email),
+  });
+}
+
+// GET /api/conversations?sessionId=xxx&topicId=xxx (optional)
+export async function GET(request: NextRequest) {
+  try {
+    const sessionId = request.nextUrl.searchParams.get("sessionId");
+    const topicId = request.nextUrl.searchParams.get("topicId");
+
+    if (!sessionId) {
+      return NextResponse.json({ conversations: [] });
+    }
+
+    const user = await getUserFromSession(sessionId);
+    if (!user) {
+      return NextResponse.json({ conversations: [] });
+    }
+
+    // Build query conditions
+    const conditions = [eq(conversations.userId, user.id)];
+    if (topicId) {
+      conditions.push(eq(conversations.topicId, topicId));
+    }
+
+    // Get conversations with message count
+    const result = await db
+      .select({
+        id: conversations.id,
+        topicId: conversations.topicId,
+        title: conversations.title,
+        createdAt: conversations.createdAt,
+        updatedAt: conversations.updatedAt,
+        messageCount: count(messages.id),
+      })
+      .from(conversations)
+      .leftJoin(messages, eq(messages.conversationId, conversations.id))
+      .where(and(...conditions))
+      .groupBy(conversations.id)
+      .orderBy(desc(conversations.updatedAt));
+
+    return NextResponse.json({
+      conversations: result.map((c) => ({
+        id: c.id,
+        topicId: c.topicId,
+        title: c.title,
+        createdAt: c.createdAt?.toISOString(),
+        updatedAt: c.updatedAt?.toISOString(),
+        messageCount: Number(c.messageCount),
+      })),
+    });
+  } catch (error) {
+    console.error("Get conversations error:", error);
+    return NextResponse.json({ conversations: [], error: "Failed to fetch conversations" }, { status: 500 });
+  }
+}
+
+// POST /api/conversations - Create new conversation
+export async function POST(request: NextRequest) {
+  try {
+    const { sessionId, topicId, group = "krokyo" } = await request.json();
+
+    if (!sessionId) {
+      return NextResponse.json({ error: "sessionId required" }, { status: 400 });
+    }
+
+    // Get or create user
+    const email = `anon-${sessionId}@stats-tutor.local`;
+    let user = await db.query.users.findFirst({
+      where: eq(users.email, email),
+    });
+
+    if (!user) {
+      const [newUser] = await db
+        .insert(users)
+        .values({ email, group })
+        .returning();
+      user = newUser;
+    }
+
+    // Check for recent conversation to prevent rapid duplicates (within 2 seconds)
+    if (topicId) {
+      const recentConversation = await db.query.conversations.findFirst({
+        where: and(
+          eq(conversations.userId, user.id),
+          eq(conversations.topicId, topicId),
+          sql`${conversations.createdAt} > NOW() - INTERVAL '2 seconds'`
+        ),
+        orderBy: desc(conversations.createdAt),
+      });
+
+      if (recentConversation) {
+        return NextResponse.json({ conversation: recentConversation });
+      }
+    }
+
+    // Create new conversation
+    const [newConversation] = await db
+      .insert(conversations)
+      .values({
+        userId: user.id,
+        topicId: topicId || null,
+        title: "",
+      })
+      .returning();
+
+    return NextResponse.json({ conversation: newConversation });
+  } catch (error) {
+    console.error("Create conversation error:", error);
+    return NextResponse.json({ error: "Failed to create conversation" }, { status: 500 });
+  }
+}
