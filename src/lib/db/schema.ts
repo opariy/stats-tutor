@@ -91,6 +91,22 @@ export const feedbackRelations = relations(feedback, ({ one }) => ({
   }),
 }));
 
+// Message topic tags - AI auto-detected topics for analytics
+export const messageTags = pgTable("message_tags", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  messageId: uuid("message_id").references(() => messages.id).notNull(),
+  topicId: text("topic_id").notNull(),  // References topics.id
+  confidence: integer("confidence").default(100),  // 0-100 confidence score
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const messageTagsRelations = relations(messageTags, ({ one }) => ({
+  message: one(messages, {
+    fields: [messageTags.messageId],
+    references: [messages.id],
+  }),
+}));
+
 // System prompts for runtime editing
 export const systemPrompts = pgTable("system_prompts", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -140,6 +156,7 @@ export type User = typeof users.$inferSelect;
 export type Session = typeof sessions.$inferSelect;
 export type Conversation = typeof conversations.$inferSelect;
 export type Message = typeof messages.$inferSelect;
+export type MessageTag = typeof messageTags.$inferSelect;
 export type Feedback = typeof feedback.$inferSelect;
 export type SystemPrompt = typeof systemPrompts.$inferSelect;
 export type Chapter = typeof chapters.$inferSelect;

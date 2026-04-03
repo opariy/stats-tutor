@@ -11,6 +11,11 @@ type TopicPickerProps = {
 export default function TopicPicker({ onSelectTopic, selectedTopic }: TopicPickerProps) {
   const [expandedChapter, setExpandedChapter] = useState<number | null>(null);
 
+  const handleClick = (topic: Topic | null) => {
+    console.log("[TopicPicker] Topic clicked:", topic?.id || "general");
+    onSelectTopic(topic);
+  };
+
   return (
     <div className="bg-white border-r border-stone-200 w-72 flex flex-col h-full">
       <div className="p-5 border-b border-stone-100">
@@ -21,7 +26,7 @@ export default function TopicPicker({ onSelectTopic, selectedTopic }: TopicPicke
       {/* General Chat Option */}
       <button
         onClick={() => {
-          onSelectTopic(null);
+          handleClick(null);
           setExpandedChapter(null);
         }}
         className={`w-full text-left px-5 py-4 text-sm border-b border-stone-100 transition-all ${
@@ -77,7 +82,7 @@ export default function TopicPicker({ onSelectTopic, selectedTopic }: TopicPicke
                 {chapter.topics.map((topic) => (
                   <button
                     key={topic.id}
-                    onClick={() => onSelectTopic(topic)}
+                    onClick={() => handleClick(topic)}
                     className={`w-full text-left px-5 py-2.5 pl-14 text-sm transition-all ${
                       selectedTopic?.id === topic.id
                         ? "bg-teal-100 text-teal-700 font-medium"

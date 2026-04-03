@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import ChatSidebar from "./chat-sidebar";
-import { chapters, getTopicSuggestions } from "@/lib/topics";
 
 type Message = {
   role: "user" | "assistant";
@@ -60,16 +59,6 @@ export default function StudyChat() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Get topic name for display
-  const getTopicName = (topicId: string | null): string | null => {
-    if (!topicId) return null;
-    for (const chapter of chapters) {
-      const topic = chapter.topics.find((t) => t.id === topicId);
-      if (topic) return topic.name;
-    }
-    return null;
-  };
-
   // Load conversation messages
   const loadConversation = async (conversationId: string) => {
     try {
@@ -90,28 +79,12 @@ export default function StudyChat() {
     setShowSidebar(false);
   };
 
-  // Handle creating a new chat
-  const handleNewChat = async (topicId: string | null) => {
-    if (!sessionId) return;
-
-    try {
-      const res = await fetch("/api/conversations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId, topicId, group }),
-      });
-      const data = await res.json();
-
-      if (data.conversation) {
-        setActiveConversation(data.conversation);
-        setMessages([]);
-        setFeedbackGiven({});
-        setSidebarKey((k) => k + 1); // Refresh sidebar to show new chat
-        setShowSidebar(false);
-      }
-    } catch (error) {
-      console.error("Failed to create conversation:", error);
-    }
+  // Handle creating a new chat - no topic selection, just start chatting
+  const handleNewChat = () => {
+    setActiveConversation(null);
+    setMessages([]);
+    setFeedbackGiven({});
+    setShowSidebar(false);
   };
 
   // Handle sending a message
@@ -127,7 +100,7 @@ export default function StudyChat() {
         const res = await fetch("/api/conversations", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sessionId, topicId: null, group }),
+          body: JSON.stringify({ sessionId, group }),
         });
         const data = await res.json();
         if (data.conversation) {
@@ -140,11 +113,6 @@ export default function StudyChat() {
         return;
       }
     }
-
-    // Get topic context for the prompt
-    const topicId = activeConversation?.topicId;
-    const topicName = getTopicName(topicId);
-    const topicContext = topicName ? `[Topic: ${topicName}]` : "";
 
     const userMessage: Message = { role: "user", content: messageContent };
     const newMessages = [...messages, userMessage];
@@ -161,7 +129,6 @@ export default function StudyChat() {
           group,
           sessionId,
           conversationId: convId,
-          topicContext: topicContext || undefined,
         }),
       });
 
@@ -194,11 +161,8 @@ export default function StudyChat() {
         }
       }
 
-      // Update conversation title if it's the first message
-      if (newMessages.length === 1 && convId) {
-        // Sidebar will refresh and show updated title from server
-        setSidebarKey((k) => k + 1);
-      }
+      // Refresh sidebar to show updated title
+      setSidebarKey((k) => k + 1);
     } catch (error) {
       console.error("Failed to send message:", error);
     } finally {
@@ -228,8 +192,6 @@ export default function StudyChat() {
     }
     return count - 1;
   };
-
-  const topicName = getTopicName(activeConversation?.topicId || null);
 
   return (
     <div className="flex h-screen bg-stone-50">
@@ -282,15 +244,13 @@ export default function StudyChat() {
             </div>
             <div>
               <h1 className="font-display text-sm font-semibold text-stone-900">Stats Tutor</h1>
-              <p className="text-xs text-stone-500">
-                {topicName || "General Chat"}
-              </p>
+              <p className="text-xs text-stone-500">Ask me anything about statistics</p>
             </div>
           </div>
 
           {/* New chat button */}
           <button
-            onClick={() => handleNewChat(activeConversation?.topicId || null)}
+            onClick={handleNewChat}
             className="p-2 text-stone-400 hover:text-stone-600 hover:bg-stone-100 rounded-lg transition-colors"
             title="New chat"
           >
@@ -311,10 +271,10 @@ export default function StudyChat() {
             </div>
 
             <h1 className="font-display text-2xl font-bold text-stone-900 mb-2 tracking-tight">
-              {topicName ? `Let's study ${topicName}` : "Ask me anything"}
+              What do you need help with?
             </h1>
             <p className="text-stone-500 text-sm mb-6">
-              {topicName ? "I'll help you understand this topic" : "Statistics questions? I'm here to help!"}
+              Ask any statistics question and I'll help you understand it
             </p>
 
             <div className="w-full max-w-lg">
@@ -340,17 +300,26 @@ export default function StudyChat() {
               </div>
             </div>
 
-            {/* Quick suggestions - dynamic based on topic */}
+            {/* Quick suggestions */}
             <div className="mt-8 flex flex-wrap gap-2 justify-center max-w-lg">
-              {getTopicSuggestions(activeConversation?.topicId || null).map((suggestion, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setInput(suggestion)}
-                  className="text-xs bg-stone-100 hover:bg-teal-50 hover:text-teal-700 text-stone-600 px-4 py-2 rounded-full transition-colors font-medium"
-                >
-                  {suggestion}
-                </button>
-              ))}
+              <button
+                onClick={() => setInput("Explain confidence intervals")}
+                className="text-xs bg-stone-100 hover:bg-teal-50 hover:text-teal-700 text-stone-600 px-4 py-2 rounded-full transition-colors font-medium"
+              >
+                Confidence intervals
+              </button>
+              <button
+                onClick={() => setInput("What's the difference between Type I and Type II errors?")}
+                className="text-xs bg-stone-100 hover:bg-teal-50 hover:text-teal-700 text-stone-600 px-4 py-2 rounded-full transition-colors font-medium"
+              >
+                Type I vs Type II errors
+              </button>
+              <button
+                onClick={() => setInput("When do I use t-test vs z-test?")}
+                className="text-xs bg-stone-100 hover:bg-teal-50 hover:text-teal-700 text-stone-600 px-4 py-2 rounded-full transition-colors font-medium"
+              >
+                t-test vs z-test
+              </button>
             </div>
           </div>
         ) : (

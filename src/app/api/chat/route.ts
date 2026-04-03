@@ -26,14 +26,9 @@ async function getOrCreateUser(sessionId: string, group: "krokyo" | "control") {
 
 export async function POST(request: NextRequest) {
   try {
-    const { messages: chatMessages, group = "krokyo", sessionId, conversationId, topicContext } = await request.json();
+    const { messages: chatMessages, group = "krokyo", sessionId, conversationId } = await request.json();
 
-    let systemPrompt = getPromptForGroup(group as "krokyo" | "control");
-
-    // Add topic context if provided
-    if (topicContext) {
-      systemPrompt += `\n\nCURRENT FOCUS: The student is studying a specific topic. ${topicContext}Focus your responses on this topic while staying within your tutoring guidelines.`;
-    }
+    const systemPrompt = getPromptForGroup(group as "krokyo" | "control");
     const startTime = Date.now();
 
     // Get or create user for logging
@@ -94,6 +89,15 @@ export async function POST(request: NextRequest) {
               content: fullText,
               responseTimeMs,
             });
+
+            // Auto-tag topics async (fire and forget)
+            if (conversationId) {
+              fetch(`${process.env.NEXT_PUBLIC_URL || "http://localhost:3000"}/api/tag-topics`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ conversationId }),
+              }).catch((err) => console.error("Topic tagging failed:", err));
+            }
           }
           controller.close();
         });
