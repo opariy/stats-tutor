@@ -183,8 +183,8 @@ export default function AdminDashboard({ stats }: { stats: Stats }) {
       : null;
 
   return (
-    <div className="min-h-screen bg-stone-50 p-8">
-      <div className="max-w-6xl mx-auto">
+    <div className="p-8">
+      <div className="max-w-6xl">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10">
           <div>
             <h1 className="font-display text-3xl font-bold text-stone-900 tracking-tight">Krokyo Admin</h1>

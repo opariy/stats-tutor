@@ -1,8 +1,6 @@
 import { db } from "@/lib/db";
 import { users, messages, feedback } from "@/lib/db/schema";
 import { sql, eq, desc } from "drizzle-orm";
-import { cookies } from "next/headers";
-import AdminLogin from "./admin-login";
 import AdminDashboard from "./admin-dashboard";
 
 async function getStats() {
@@ -102,19 +100,7 @@ async function getStats() {
   };
 }
 
-async function isAuthenticated() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("admin_token")?.value;
-  return token === process.env.ADMIN_PASSWORD;
-}
-
 export default async function AdminPage() {
-  const authenticated = await isAuthenticated();
-
-  if (!authenticated) {
-    return <AdminLogin />;
-  }
-
   const stats = await getStats();
 
   return <AdminDashboard stats={stats} />;
