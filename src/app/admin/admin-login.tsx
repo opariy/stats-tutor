@@ -22,9 +22,11 @@ export default function AdminLogin() {
       });
 
       if (response.ok) {
-        router.refresh();
+        // Force full page reload to ensure server component re-renders with new cookie
+        window.location.reload();
       } else {
-        setError("Invalid password");
+        const data = await response.json();
+        setError(data.error || "Invalid password");
       }
     } catch {
       setError("Something went wrong");
