@@ -1,29 +1,101 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
-import { getGeneralSystemPrompt } from "@/lib/topics";
+import { getPromptForGroup } from "@/lib/prompts";
+import { db, users, messages } from "@/lib/db";
+import { eq } from "drizzle-orm";
 
 const anthropic = new Anthropic();
 
+async function getOrCreateUser(sessionId: string, group: "krokyo" | "control") {
+  const email = `anon-${sessionId}@stats-tutor.local`;
+
+  let user = await db.query.users.findFirst({
+    where: eq(users.email, email),
+  });
+
+  if (!user) {
+    const [newUser] = await db
+      .insert(users)
+      .values({ email, group })
+      .returning();
+    user = newUser;
+  }
+
+  return user;
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const { messages } = await request.json();
+    const { messages: chatMessages, group = "krokyo", sessionId } = await request.json();
 
-    const systemPrompt = getGeneralSystemPrompt();
+    const systemPrompt = getPromptForGroup(group as "krokyo" | "control");
+    const startTime = Date.now();
 
-    const response = await anthropic.messages.create({
+    // Get or create user for logging
+    let user = null;
+    if (sessionId) {
+      user = await getOrCreateUser(sessionId, group as "krokyo" | "control");
+
+      // Log user's message
+      const lastUserMessage = chatMessages[chatMessages.length - 1];
+      if (lastUserMessage?.role === "user") {
+        await db.insert(messages).values({
+          userId: user.id,
+          role: "user",
+          content: lastUserMessage.content,
+        });
+      }
+    }
+
+    // Use Anthropic SDK directly with streaming
+    const stream = anthropic.messages.stream({
       model: "claude-sonnet-4-20250514",
       max_tokens: 1024,
       system: systemPrompt,
-      messages: messages.map((m: { role: string; content: string }) => ({
+      messages: chatMessages.map((m: { role: string; content: string }) => ({
         role: m.role as "user" | "assistant",
         content: m.content,
       })),
     });
 
-    const assistantMessage =
-      response.content[0].type === "text" ? response.content[0].text : "";
+    // Create a readable stream for the response
+    const encoder = new TextEncoder();
+    let fullText = "";
 
-    return NextResponse.json({ message: assistantMessage });
+    const readableStream = new ReadableStream({
+      async start(controller) {
+        stream.on("text", (text) => {
+          fullText += text;
+          controller.enqueue(encoder.encode(text));
+        });
+
+        stream.on("end", async () => {
+          // Log assistant message when done
+          if (user) {
+            const responseTimeMs = Date.now() - startTime;
+            await db.insert(messages).values({
+              userId: user.id,
+              role: "assistant",
+              content: fullText,
+              responseTimeMs,
+            });
+          }
+          controller.close();
+        });
+
+        stream.on("error", (error) => {
+          console.error("Stream error:", error);
+          controller.error(error);
+        });
+      },
+    });
+
+    return new Response(readableStream, {
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Transfer-Encoding": "chunked",
+      },
+    });
   } catch (error) {
     console.error("Chat error:", error);
     return NextResponse.json(
