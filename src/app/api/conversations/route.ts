@@ -11,10 +11,13 @@ async function getUserFromSession(sessionId: string) {
 }
 
 // GET /api/conversations?sessionId=xxx&topicId=xxx (optional)
+// - No topicId: return ALL conversations
+// - topicId=general: return only conversations with null topicId
+// - topicId=xyz: return only conversations with that topicId
 export async function GET(request: NextRequest) {
   try {
     const sessionId = request.nextUrl.searchParams.get("sessionId");
-    const topicId = request.nextUrl.searchParams.get("topicId");
+    const topicIdParam = request.nextUrl.searchParams.get("topicId");
 
     if (!sessionId) {
       return NextResponse.json({ conversations: [] });
@@ -27,9 +30,14 @@ export async function GET(request: NextRequest) {
 
     // Build query conditions
     const conditions = [eq(conversations.userId, user.id)];
-    if (topicId) {
-      conditions.push(eq(conversations.topicId, topicId));
+    if (topicIdParam === "general") {
+      // Filter for conversations with null topicId
+      conditions.push(sql`${conversations.topicId} IS NULL`);
+    } else if (topicIdParam) {
+      // Filter for specific topicId
+      conditions.push(eq(conversations.topicId, topicIdParam));
     }
+    // If no topicIdParam, return ALL conversations (no additional filter)
 
     // Get conversations with message count
     const result = await db
