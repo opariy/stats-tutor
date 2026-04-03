@@ -48,9 +48,10 @@ export default function ChatSidebar({
     fetchConversations();
   }, [sessionId]);
 
-  // Group conversations by topicId
-  const generalChats = conversations.filter((c) => !c.topicId);
-  const chatsByTopic = conversations.reduce((acc, conv) => {
+  // Group conversations by topicId - only show chats with messages
+  const chatsWithMessages = conversations.filter((c) => c.messageCount > 0);
+  const generalChats = chatsWithMessages.filter((c) => !c.topicId);
+  const chatsByTopic = chatsWithMessages.reduce((acc, conv) => {
     if (conv.topicId) {
       if (!acc[conv.topicId]) acc[conv.topicId] = [];
       acc[conv.topicId].push(conv);
@@ -122,7 +123,7 @@ export default function ChatSidebar({
       <div className="flex-1 overflow-y-auto">
         {isLoading ? (
           <div className="p-4 text-center text-stone-400 text-sm">Loading...</div>
-        ) : conversations.length === 0 ? (
+        ) : chatsWithMessages.length === 0 ? (
           <div className="p-4 text-center text-stone-400 text-sm">
             No chats yet. Start a new conversation!
           </div>

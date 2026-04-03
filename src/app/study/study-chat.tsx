@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import ChatSidebar from "./chat-sidebar";
-import { chapters } from "@/lib/topics";
+import { chapters, getTopicSuggestions } from "@/lib/topics";
 
 type Message = {
   role: "user" | "assistant";
@@ -340,26 +340,17 @@ export default function StudyChat() {
               </div>
             </div>
 
-            {/* Quick suggestions */}
+            {/* Quick suggestions - dynamic based on topic */}
             <div className="mt-8 flex flex-wrap gap-2 justify-center max-w-lg">
-              <button
-                onClick={() => setInput("What's the difference between Type I and Type II errors?")}
-                className="text-xs bg-stone-100 hover:bg-teal-50 hover:text-teal-700 text-stone-600 px-4 py-2 rounded-full transition-colors font-medium"
-              >
-                Type I vs Type II errors
-              </button>
-              <button
-                onClick={() => setInput("How do I know when to use a t-test vs z-test?")}
-                className="text-xs bg-stone-100 hover:bg-teal-50 hover:text-teal-700 text-stone-600 px-4 py-2 rounded-full transition-colors font-medium"
-              >
-                t-test vs z-test
-              </button>
-              <button
-                onClick={() => setInput("Explain confidence intervals")}
-                className="text-xs bg-stone-100 hover:bg-teal-50 hover:text-teal-700 text-stone-600 px-4 py-2 rounded-full transition-colors font-medium"
-              >
-                Confidence intervals
-              </button>
+              {getTopicSuggestions(activeConversation?.topicId || null).map((suggestion, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setInput(suggestion)}
+                  className="text-xs bg-stone-100 hover:bg-teal-50 hover:text-teal-700 text-stone-600 px-4 py-2 rounded-full transition-colors font-medium"
+                >
+                  {suggestion}
+                </button>
+              ))}
             </div>
           </div>
         ) : (
