@@ -161,8 +161,13 @@ export default function StudyChat() {
         }
       }
 
-      // Refresh sidebar to show updated title
+      // Refresh sidebar to show updated conversation
       setSidebarKey((k) => k + 1);
+
+      // Refresh again after title generation completes (async)
+      if (newMessages.length <= 2) {
+        setTimeout(() => setSidebarKey((k) => k + 1), 3000);
+      }
     } catch (error) {
       console.error("Failed to send message:", error);
     } finally {

@@ -92,11 +92,21 @@ export async function POST(request: NextRequest) {
 
             // Auto-tag topics async (fire and forget)
             if (conversationId) {
-              fetch(`${process.env.NEXT_PUBLIC_URL || "http://localhost:3000"}/api/tag-topics`, {
+              const baseUrl = process.env.NEXT_PUBLIC_URL || "http://localhost:3000";
+
+              fetch(`${baseUrl}/api/tag-topics`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ conversationId }),
               }).catch((err) => console.error("Topic tagging failed:", err));
+
+              // Generate title if this is an early exchange (first 2 messages)
+              if (chatMessages.length <= 2) {
+                fetch(`${baseUrl}/api/conversations/${conversationId}/generate-title`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                }).catch((err) => console.error("Title generation failed:", err));
+              }
             }
           }
           controller.close();
