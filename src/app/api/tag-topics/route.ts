@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, messages, messageTags } from "@/lib/db";
-import { eq, desc, and, notExists } from "drizzle-orm";
+import { db, messages, messageTags, conversations } from "@/lib/db";
+import { eq, desc } from "drizzle-orm";
 import { allTopics } from "@/lib/topics";
 import Anthropic from "@anthropic-ai/sdk";
 
@@ -106,10 +106,24 @@ Respond with ONLY a JSON array like ["topic-id-1", "topic-id-2"] or []. No expla
       }
     }
 
+    // Set primary topic on conversation if not already set
+    // Use the first (most relevant) detected topic
+    const conversation = await db.query.conversations.findFirst({
+      where: eq(conversations.id, conversationId),
+    });
+
+    if (conversation && !conversation.topicId && detectedTopics.length > 0) {
+      await db
+        .update(conversations)
+        .set({ topicId: detectedTopics[0] })
+        .where(eq(conversations.id, conversationId));
+    }
+
     return NextResponse.json({
       tagged: taggedCount,
       topics: detectedTopics,
       messageId: userMessage.id,
+      primaryTopic: detectedTopics[0],
     });
   } catch (error) {
     console.error("Topic tagging error:", error);

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, users, conversations, messages } from "@/lib/db";
+import { db, users, conversations, messages, topics } from "@/lib/db";
 import { eq, and, desc, sql, count } from "drizzle-orm";
 
 // Get user from sessionId
@@ -39,11 +39,12 @@ export async function GET(request: NextRequest) {
     }
     // If no topicIdParam, return ALL conversations (no additional filter)
 
-    // Get conversations with message count
+    // Get conversations with message count and topic name
     const result = await db
       .select({
         id: conversations.id,
         topicId: conversations.topicId,
+        topicName: topics.name,
         title: conversations.title,
         createdAt: conversations.createdAt,
         updatedAt: conversations.updatedAt,
@@ -51,14 +52,16 @@ export async function GET(request: NextRequest) {
       })
       .from(conversations)
       .leftJoin(messages, eq(messages.conversationId, conversations.id))
+      .leftJoin(topics, eq(topics.id, conversations.topicId))
       .where(and(...conditions))
-      .groupBy(conversations.id)
+      .groupBy(conversations.id, topics.name)
       .orderBy(desc(conversations.updatedAt));
 
     return NextResponse.json({
       conversations: result.map((c) => ({
         id: c.id,
         topicId: c.topicId,
+        topicName: c.topicName,
         title: c.title,
         createdAt: c.createdAt?.toISOString(),
         updatedAt: c.updatedAt?.toISOString(),

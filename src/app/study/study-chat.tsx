@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import Image from "next/image";
+import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import ChatSidebar from "./chat-sidebar";
 
@@ -12,11 +14,25 @@ type Message = {
 type Conversation = {
   id: string;
   topicId: string | null;
+  topicName?: string | null;
   title: string;
   createdAt: string;
   updatedAt: string;
   messageCount: number;
 };
+
+// Example prompts that rotate to help students discover what they can ask
+const EXAMPLE_PROMPTS = [
+  { label: "Confidence intervals", prompt: "Explain confidence intervals" },
+  { label: "Type I vs Type II errors", prompt: "What's the difference between Type I and Type II errors?" },
+  { label: "t-test vs z-test", prompt: "When do I use t-test vs z-test?" },
+  { label: "Bayes' theorem", prompt: "Help me understand Bayes' theorem" },
+  { label: "Normal distribution", prompt: "What makes the normal distribution so important?" },
+  { label: "Hypothesis testing", prompt: "Walk me through hypothesis testing steps" },
+  { label: "Sample size", prompt: "How do I determine the right sample size?" },
+  { label: "Central Limit Theorem", prompt: "Explain the Central Limit Theorem" },
+  { label: "P-values", prompt: "What exactly is a p-value?" },
+];
 
 function getOrCreateSessionId(): string {
   if (typeof window === "undefined") return "";
@@ -36,6 +52,12 @@ function getOrAssignGroup(): "krokyo" | "control" {
   return group;
 }
 
+// Get 3 random example prompts
+function getRandomPrompts() {
+  const shuffled = [...EXAMPLE_PROMPTS].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, 3);
+}
+
 export default function StudyChat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -46,12 +68,14 @@ export default function StudyChat() {
   const [feedbackGiven, setFeedbackGiven] = useState<Record<number, "up" | "down">>({});
   const [showSidebar, setShowSidebar] = useState(false);
   const [sidebarKey, setSidebarKey] = useState(0); // To force refresh sidebar
+  const [examplePrompts, setExamplePrompts] = useState(EXAMPLE_PROMPTS.slice(0, 3));
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Initialize session
+  // Initialize session and randomize example prompts
   useEffect(() => {
     setSessionId(getOrCreateSessionId());
     setGroup(getOrAssignGroup());
+    setExamplePrompts(getRandomPrompts());
   }, []);
 
   // Scroll to bottom on new messages
@@ -85,6 +109,16 @@ export default function StudyChat() {
     setMessages([]);
     setFeedbackGiven({});
     setShowSidebar(false);
+    setExamplePrompts(getRandomPrompts()); // Refresh example prompts
+  };
+
+  // Handle deleting a conversation from sidebar
+  const handleDeleteConversation = (conversationId: string) => {
+    if (activeConversation?.id === conversationId) {
+      setActiveConversation(null);
+      setMessages([]);
+      setFeedbackGiven({});
+    }
   };
 
   // Handle sending a message
@@ -208,6 +242,7 @@ export default function StudyChat() {
           activeConversationId={activeConversation?.id || null}
           onSelectConversation={handleSelectConversation}
           onNewChat={handleNewChat}
+          onDeleteConversation={handleDeleteConversation}
         />
       </div>
 
@@ -221,6 +256,7 @@ export default function StudyChat() {
               activeConversationId={activeConversation?.id || null}
               onSelectConversation={handleSelectConversation}
               onNewChat={handleNewChat}
+              onDeleteConversation={handleDeleteConversation}
             />
           </div>
         </div>
@@ -241,16 +277,19 @@ export default function StudyChat() {
               </svg>
             </button>
 
-            <div className="relative">
-              <div className="absolute inset-0 bg-primary-gradient rounded-xl scale-110 opacity-80" />
-              <div className="relative w-10 h-10 bg-white rounded-xl flex items-center justify-center">
-                <span className="text-lg">📊</span>
+            <Link href="/" className="flex items-center gap-3 group">
+              <Image
+                src="/logo.png"
+                alt="Krokyo"
+                width={40}
+                height={40}
+                className="rounded-xl"
+              />
+              <div>
+                <h1 className="font-display text-sm font-semibold text-stone-900 group-hover:text-teal-700 transition-colors">Krokyo</h1>
+                <p className="text-xs text-stone-500">Ask me anything about statistics</p>
               </div>
-            </div>
-            <div>
-              <h1 className="font-display text-sm font-semibold text-stone-900">Stats Tutor</h1>
-              <p className="text-xs text-stone-500">Ask me anything about statistics</p>
-            </div>
+            </Link>
           </div>
 
           {/* New chat button */}
@@ -270,9 +309,13 @@ export default function StudyChat() {
           <div className="flex-1 flex flex-col items-center justify-center p-6">
             <div className="relative mb-6">
               <div className="absolute inset-0 bg-primary-gradient rounded-2xl blur-sm opacity-50 scale-110" />
-              <div className="relative w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-soft-md">
-                <span className="text-3xl">📊</span>
-              </div>
+              <Image
+                src="/logo.png"
+                alt="Krokyo"
+                width={64}
+                height={64}
+                className="relative rounded-2xl shadow-soft-md"
+              />
             </div>
 
             <h1 className="font-display text-2xl font-bold text-stone-900 mb-2 tracking-tight">
@@ -305,26 +348,32 @@ export default function StudyChat() {
               </div>
             </div>
 
-            {/* Quick suggestions */}
-            <div className="mt-8 flex flex-wrap gap-2 justify-center max-w-lg">
-              <button
-                onClick={() => setInput("Explain confidence intervals")}
-                className="text-xs bg-stone-100 hover:bg-teal-50 hover:text-teal-700 text-stone-600 px-4 py-2 rounded-full transition-colors font-medium"
-              >
-                Confidence intervals
-              </button>
-              <button
-                onClick={() => setInput("What's the difference between Type I and Type II errors?")}
-                className="text-xs bg-stone-100 hover:bg-teal-50 hover:text-teal-700 text-stone-600 px-4 py-2 rounded-full transition-colors font-medium"
-              >
-                Type I vs Type II errors
-              </button>
-              <button
-                onClick={() => setInput("When do I use t-test vs z-test?")}
-                className="text-xs bg-stone-100 hover:bg-teal-50 hover:text-teal-700 text-stone-600 px-4 py-2 rounded-full transition-colors font-medium"
-              >
-                t-test vs z-test
-              </button>
+            {/* Example prompts */}
+            <div className="mt-8 w-full max-w-lg">
+              <p className="text-xs text-stone-400 text-center mb-3">Try asking:</p>
+              <div className="flex flex-col gap-2">
+                {examplePrompts.map((example, i) => (
+                  <button
+                    key={i}
+                    onClick={() => {
+                      setInput(example.prompt);
+                      // Auto-submit after setting input
+                      setTimeout(() => {
+                        const input = document.querySelector('input[type="text"]') as HTMLInputElement;
+                        input?.focus();
+                      }, 100);
+                    }}
+                    className="group flex items-center gap-3 text-left bg-white hover:bg-teal-50 border border-stone-200 hover:border-teal-200 text-stone-600 hover:text-teal-700 px-4 py-3 rounded-xl transition-all shadow-soft-sm hover:shadow-soft-md"
+                  >
+                    <span className="w-6 h-6 flex items-center justify-center bg-stone-100 group-hover:bg-teal-100 rounded-lg text-stone-400 group-hover:text-teal-600 transition-colors">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </span>
+                    <span className="text-sm font-medium">{example.prompt}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         ) : (
@@ -341,9 +390,13 @@ export default function StudyChat() {
                       <div className="flex items-start gap-3">
                         <div className="relative flex-shrink-0 mt-0.5">
                           <div className="absolute inset-0 bg-primary-gradient rounded-lg scale-110 opacity-80" />
-                          <div className="relative w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-                            <span className="text-sm">📊</span>
-                          </div>
+                          <Image
+                            src="/logo.png"
+                            alt="Krokyo"
+                            width={32}
+                            height={32}
+                            className="relative rounded-lg"
+                          />
                         </div>
                         <div className="flex flex-col gap-2">
                           <div className="bg-white rounded-2xl rounded-tl-md px-5 py-3 max-w-[85%] text-sm text-stone-800 border border-stone-200 shadow-soft-sm">
@@ -432,9 +485,13 @@ export default function StudyChat() {
                 <div className="flex items-start gap-3 mb-6">
                   <div className="relative flex-shrink-0">
                     <div className="absolute inset-0 bg-primary-gradient rounded-lg scale-110 opacity-80" />
-                    <div className="relative w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-                      <span className="text-sm">📊</span>
-                    </div>
+                    <Image
+                      src="/logo.png"
+                      alt="Krokyo"
+                      width={32}
+                      height={32}
+                      className="relative rounded-lg"
+                    />
                   </div>
                   <div className="bg-white rounded-2xl rounded-tl-md px-5 py-3 text-sm text-stone-500 border border-stone-200 shadow-soft-sm">
                     <span className="inline-flex gap-1">
