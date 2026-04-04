@@ -1,6 +1,51 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, conversations, messages, messageTags } from "@/lib/db";
+import { db, conversations, messages, messageTags, topics } from "@/lib/db";
 import { eq, inArray } from "drizzle-orm";
+
+// GET /api/conversations/[id] - Get a single conversation's details
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id: conversationId } = await params;
+
+    if (!conversationId) {
+      return NextResponse.json({ error: "conversationId required" }, { status: 400 });
+    }
+
+    const conversation = await db.query.conversations.findFirst({
+      where: eq(conversations.id, conversationId),
+    });
+
+    if (!conversation) {
+      return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
+    }
+
+    // Get topic name if topicId exists
+    let topicName = null;
+    if (conversation.topicId) {
+      const topic = await db.query.topics.findFirst({
+        where: eq(topics.id, conversation.topicId),
+      });
+      topicName = topic?.name || null;
+    }
+
+    return NextResponse.json({
+      conversation: {
+        id: conversation.id,
+        topicId: conversation.topicId,
+        topicName,
+        title: conversation.title,
+        createdAt: conversation.createdAt?.toISOString(),
+        updatedAt: conversation.updatedAt?.toISOString(),
+      },
+    });
+  } catch (error) {
+    console.error("Get conversation error:", error);
+    return NextResponse.json({ error: "Failed to fetch conversation" }, { status: 500 });
+  }
+}
 
 // DELETE /api/conversations/[id] - Delete a conversation and its messages
 export async function DELETE(

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, users, conversations, messages, topics } from "@/lib/db";
 import { eq, and, desc, sql, count } from "drizzle-orm";
+import { logApiError } from "@/lib/api-error-logger";
 
 // Get user from sessionId
 async function getUserFromSession(sessionId: string) {
@@ -70,6 +71,15 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("Get conversations error:", error);
+
+    const sessionId = request.nextUrl.searchParams.get("sessionId");
+    await logApiError(
+      "/api/conversations",
+      500,
+      error instanceof Error ? error.message : "Unknown error",
+      sessionId || undefined
+    );
+
     return NextResponse.json({ conversations: [], error: "Failed to fetch conversations" }, { status: 500 });
   }
 }
@@ -126,6 +136,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ conversation: newConversation });
   } catch (error) {
     console.error("Create conversation error:", error);
+
+    const { sessionId } = await request.clone().json().catch(() => ({}));
+    await logApiError(
+      "/api/conversations",
+      500,
+      error instanceof Error ? error.message : "Unknown error",
+      sessionId
+    );
+
     return NextResponse.json({ error: "Failed to create conversation" }, { status: 500 });
   }
 }

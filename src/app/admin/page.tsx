@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { users, messages, feedback } from "@/lib/db/schema";
 import { sql, eq, desc } from "drizzle-orm";
+import { getAllMetrics } from "@/lib/admin-metrics";
 import AdminDashboard from "./admin-dashboard";
 
 async function getStats() {
@@ -285,7 +286,11 @@ async function getStats() {
 }
 
 export default async function AdminPage() {
-  const stats = await getStats();
+  // Run legacy stats and new metrics in parallel
+  const [stats, pillarMetrics] = await Promise.all([
+    getStats(),
+    getAllMetrics(),
+  ]);
 
-  return <AdminDashboard stats={stats} />;
+  return <AdminDashboard stats={stats} pillarMetrics={pillarMetrics} />;
 }

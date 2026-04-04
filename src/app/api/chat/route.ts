@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getPromptForGroup } from "@/lib/prompts";
 import { db, users, messages, conversations } from "@/lib/db";
 import { eq, sql } from "drizzle-orm";
+import { logApiError } from "@/lib/api-error-logger";
 
 const anthropic = new Anthropic();
 
@@ -127,6 +128,16 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Chat error:", error);
+
+    // Log error to apiErrors table
+    const { sessionId } = await request.clone().json().catch(() => ({}));
+    await logApiError(
+      "/api/chat",
+      500,
+      error instanceof Error ? error.message : "Unknown error",
+      sessionId
+    );
+
     return NextResponse.json(
       { error: "Failed to get response" },
       { status: 500 }

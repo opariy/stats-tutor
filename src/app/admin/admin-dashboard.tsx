@@ -1,5 +1,16 @@
 "use client";
 
+import TechMetrics from "./components/tech-metrics";
+import ProductMetrics from "./components/product-metrics";
+import LearningMetrics from "./components/learning-metrics";
+import type { TechMetrics as TechMetricsType, ProductMetrics as ProductMetricsType, LearningMetrics as LearningMetricsType } from "@/lib/admin-metrics";
+
+type PillarMetrics = {
+  techMetrics: TechMetricsType;
+  productMetrics: ProductMetricsType;
+  learningMetrics: LearningMetricsType;
+};
+
 type Stats = {
   users: { total: number; krokyo: number; control: number };
   messages: { total: number; userMessages: number; assistantMessages: number };
@@ -181,7 +192,7 @@ function ExportButtons() {
   );
 }
 
-export default function AdminDashboard({ stats }: { stats: Stats }) {
+export default function AdminDashboard({ stats, pillarMetrics }: { stats: Stats; pillarMetrics: PillarMetrics }) {
   const krokyoFeedback = stats.feedbackByGroup.find((f) => f.group === "krokyo");
   const controlFeedback = stats.feedbackByGroup.find((f) => f.group === "control");
 
@@ -235,136 +246,11 @@ export default function AdminDashboard({ stats }: { stats: Stats }) {
           </div>
         </div>
 
-        {/* Tech Metrics */}
-        <div className="bg-white rounded-xl border border-stone-200 p-6 shadow-soft-sm mb-6">
-          <h2 className="font-display text-lg font-semibold text-stone-900 mb-5 flex items-center gap-2">
-            <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
-            </svg>
-            Tech Metrics
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
-            <div>
-              <p className="text-xs text-stone-500 uppercase font-semibold tracking-wider mb-1">Reply Rate</p>
-              <p className={`text-2xl font-bold ${stats.techMetrics.replyRate >= 95 ? 'text-emerald-600' : stats.techMetrics.replyRate >= 80 ? 'text-amber-600' : 'text-red-500'}`}>
-                {stats.techMetrics.replyRate}%
-              </p>
-              <p className="text-xs text-stone-400">% user msgs with response</p>
-            </div>
-            <div>
-              <p className="text-xs text-stone-500 uppercase font-semibold tracking-wider mb-1">Avg Response</p>
-              <p className="text-2xl font-bold text-stone-900">
-                {stats.techMetrics.avgResponseTime ? `${(stats.techMetrics.avgResponseTime / 1000).toFixed(1)}s` : '—'}
-              </p>
-              <p className="text-xs text-stone-400">mean response time</p>
-            </div>
-            <div>
-              <p className="text-xs text-stone-500 uppercase font-semibold tracking-wider mb-1">P95 Response</p>
-              <p className={`text-2xl font-bold ${stats.techMetrics.p95ResponseTime < 10000 ? 'text-emerald-600' : stats.techMetrics.p95ResponseTime < 20000 ? 'text-amber-600' : 'text-red-500'}`}>
-                {stats.techMetrics.p95ResponseTime ? `${(stats.techMetrics.p95ResponseTime / 1000).toFixed(1)}s` : '—'}
-              </p>
-              <p className="text-xs text-stone-400">95th percentile</p>
-            </div>
-            <div>
-              <p className="text-xs text-stone-500 uppercase font-semibold tracking-wider mb-1">Min Response</p>
-              <p className="text-2xl font-bold text-stone-900">
-                {stats.techMetrics.minResponseTime ? `${(stats.techMetrics.minResponseTime / 1000).toFixed(1)}s` : '—'}
-              </p>
-              <p className="text-xs text-stone-400">fastest response</p>
-            </div>
-            <div>
-              <p className="text-xs text-stone-500 uppercase font-semibold tracking-wider mb-1">Max Response</p>
-              <p className="text-2xl font-bold text-stone-900">
-                {stats.techMetrics.maxResponseTime ? `${(stats.techMetrics.maxResponseTime / 1000).toFixed(1)}s` : '—'}
-              </p>
-              <p className="text-xs text-stone-400">slowest response</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Product Metrics */}
-        <div className="bg-white rounded-xl border border-stone-200 p-6 shadow-soft-sm mb-10">
-          <h2 className="font-display text-lg font-semibold text-stone-900 mb-5 flex items-center gap-2">
-            <svg className="w-5 h-5 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-            Product Metrics
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
-            <div>
-              <p className="text-xs text-stone-500 uppercase font-semibold tracking-wider mb-1">Avg Session</p>
-              <p className="text-2xl font-bold text-stone-900">
-                {stats.productMetrics.avgSessionDuration.toFixed(1)}m
-              </p>
-              <p className="text-xs text-stone-400">duration in minutes</p>
-            </div>
-            <div>
-              <p className="text-xs text-stone-500 uppercase font-semibold tracking-wider mb-1">Msgs/Session</p>
-              <p className="text-2xl font-bold text-stone-900">
-                {stats.productMetrics.avgMessagesPerSession.toFixed(1)}
-              </p>
-              <p className="text-xs text-stone-400">messages per session</p>
-            </div>
-            <div>
-              <p className="text-xs text-stone-500 uppercase font-semibold tracking-wider mb-1">Total Time</p>
-              <p className="text-2xl font-bold text-stone-900">
-                {stats.productMetrics.totalSessionTime > 60
-                  ? `${(stats.productMetrics.totalSessionTime / 60).toFixed(1)}h`
-                  : `${stats.productMetrics.totalSessionTime.toFixed(0)}m`}
-              </p>
-              <p className="text-xs text-stone-400">all sessions combined</p>
-            </div>
-            <div>
-              <p className="text-xs text-stone-500 uppercase font-semibold tracking-wider mb-1">Retention D1</p>
-              <p className={`text-2xl font-bold ${stats.productMetrics.retentionD1 >= 30 ? 'text-emerald-600' : stats.productMetrics.retentionD1 >= 15 ? 'text-amber-600' : 'text-red-500'}`}>
-                {stats.productMetrics.retentionD1}%
-              </p>
-              <p className="text-xs text-stone-400">returned next day</p>
-            </div>
-            <div>
-              <p className="text-xs text-stone-500 uppercase font-semibold tracking-wider mb-1">Retention D7</p>
-              <p className={`text-2xl font-bold ${stats.productMetrics.retentionD7 >= 20 ? 'text-emerald-600' : stats.productMetrics.retentionD7 >= 10 ? 'text-amber-600' : 'text-red-500'}`}>
-                {stats.productMetrics.retentionD7}%
-              </p>
-              <p className="text-xs text-stone-400">returned after 7 days</p>
-            </div>
-            <div>
-              <p className="text-xs text-stone-500 uppercase font-semibold tracking-wider mb-1">Drop-off</p>
-              <p className={`text-2xl font-bold ${stats.productMetrics.dropOffRate <= 50 ? 'text-emerald-600' : stats.productMetrics.dropOffRate <= 70 ? 'text-amber-600' : 'text-red-500'}`}>
-                {stats.productMetrics.dropOffRate}%
-              </p>
-              <p className="text-xs text-stone-400">single session users</p>
-            </div>
-            <div>
-              <p className="text-xs text-stone-500 uppercase font-semibold tracking-wider mb-1">Bounce Rate</p>
-              <p className={`text-2xl font-bold ${stats.productMetrics.bounceRate <= 20 ? 'text-emerald-600' : stats.productMetrics.bounceRate <= 40 ? 'text-amber-600' : 'text-red-500'}`}>
-                {stats.productMetrics.bounceRate}%
-              </p>
-              <p className="text-xs text-stone-400">≤2 messages total</p>
-            </div>
-            <div>
-              <p className="text-xs text-stone-500 uppercase font-semibold tracking-wider mb-1">Feedback Rate</p>
-              <p className={`text-2xl font-bold ${stats.productMetrics.feedbackRate >= 20 ? 'text-emerald-600' : stats.productMetrics.feedbackRate >= 10 ? 'text-amber-600' : 'text-stone-900'}`}>
-                {stats.productMetrics.feedbackRate}%
-              </p>
-              <p className="text-xs text-stone-400">responses with feedback</p>
-            </div>
-            <div>
-              <p className="text-xs text-stone-500 uppercase font-semibold tracking-wider mb-1">Satisfaction</p>
-              <p className={`text-2xl font-bold ${
-                stats.feedback.total > 0 && (stats.feedback.thumbsUp / stats.feedback.total) >= 0.7
-                  ? 'text-emerald-600'
-                  : stats.feedback.total > 0 && (stats.feedback.thumbsUp / stats.feedback.total) >= 0.4
-                  ? 'text-amber-600'
-                  : 'text-stone-900'
-              }`}>
-                {stats.feedback.total > 0
-                  ? `${Math.round((stats.feedback.thumbsUp / stats.feedback.total) * 100)}%`
-                  : "—"}
-              </p>
-              <p className="text-xs text-stone-400">thumbs up rate</p>
-            </div>
-          </div>
+        {/* Three Pillar Metrics */}
+        <div className="space-y-6 mb-10">
+          <TechMetrics metrics={pillarMetrics.techMetrics} />
+          <ProductMetrics metrics={pillarMetrics.productMetrics} />
+          <LearningMetrics metrics={pillarMetrics.learningMetrics} />
         </div>
 
         {/* Group Comparison */}

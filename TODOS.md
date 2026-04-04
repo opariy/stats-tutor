@@ -5,39 +5,39 @@ Design doc: Admin Metrics Three-Pillar Restructure
 
 ## Priority 1: Schema & Infrastructure
 
-- [ ] Set up Vitest for testing
-- [ ] Add `topic_mastery` table to schema.ts with UNIQUE(user_id, topic_id) constraint
-- [ ] Add `apiErrors` table to schema.ts
-- [ ] Run migration with new tables
-- [ ] Add composite index: `idx_messages_conv_user ON messages(conversation_id, user_id, created_at)`
-- [ ] Add index: `idx_api_errors_created ON api_errors(created_at)`
+- [x] Set up Vitest for testing
+- [x] Add `topic_mastery` table to schema.ts with UNIQUE(user_id, topic_id) constraint
+- [x] Add `apiErrors` table to schema.ts
+- [x] Run migration with new tables
+- [x] Add composite index: `idx_messages_conv_user ON messages(conversation_id, user_id, created_at)`
+- [x] Add index: `idx_api_errors_created ON api_errors(created_at)`
 
 ## Priority 2: API & Backend
 
-- [ ] Create `POST /api/mastery` endpoint
+- [x] Create `POST /api/mastery` endpoint
   - Validate topicId is not null
   - Validate at least one message exists in conversation
   - Upsert behavior on duplicate
-- [ ] Write tests for /api/mastery (5 test cases in test plan)
-- [ ] Add error logging wrapper to /api/chat
-- [ ] Add error logging wrapper to /api/conversations
-- [ ] Extract query functions from admin/page.tsx:
+- [x] Write tests for /api/mastery (5 test cases in test plan)
+- [x] Add error logging wrapper to /api/chat
+- [x] Add error logging wrapper to /api/conversations
+- [x] Extract query functions from admin/page.tsx:
   - `getTechMetrics()` - reply rate, response times, error rate
   - `getProductMetrics()` - sessions, retention, bounce, drop-off, feedback
   - `getLearningMetrics()` - topics started, mastery, completion, abandonment
-- [ ] Parallelize queries with Promise.all()
-- [ ] Write tests for query functions (edge cases: division by zero, empty data)
+- [x] Parallelize queries with Promise.all()
+- [x] Write tests for query functions (edge cases: division by zero, empty data)
 
 ## Priority 3: Frontend
 
-- [ ] Add "I understand" button to study-chat.tsx header (only when topicId present)
-- [ ] Add polling/refetch for async topicId population after auto-tagging
-- [ ] Refactor admin-dashboard.tsx into pillar components:
+- [x] Add "I understand" button to study-chat.tsx header (only when topicId present)
+- [x] Add polling/refetch for async topicId population after auto-tagging
+- [x] Refactor admin-dashboard.tsx into pillar components:
   - `<TechMetrics />`
   - `<ProductMetrics />`
   - `<LearningMetrics />`
-- [ ] Add health indicator aggregation logic
-- [ ] Color-code thresholds (good/warning/bad)
+- [x] Add health indicator aggregation logic
+- [x] Color-code thresholds (good/warning/bad)
 
 ## Deferred (v2)
 

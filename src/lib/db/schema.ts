@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean, uuid, integer, serial } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, boolean, uuid, integer, serial, unique, index } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 export const users = pgTable("users", {
@@ -34,7 +34,10 @@ export const messages = pgTable("messages", {
   content: text("content").notNull(),
   responseTimeMs: integer("response_time_ms"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  // Composite index for learning metrics queries
+  index("idx_messages_conv_user").on(table.conversationId, table.userId, table.createdAt),
+]);
 
 export const feedback = pgTable("feedback", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -152,6 +155,48 @@ export const topicsRelations = relations(topics, ({ one }) => ({
   }),
 }));
 
+// Topic mastery - tracks when users declare they understand a topic
+export const topicMastery = pgTable("topic_mastery", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").references(() => users.id).notNull(),
+  topicId: text("topic_id").notNull(),
+  conversationId: uuid("conversation_id").references(() => conversations.id),
+  declaredAt: timestamp("declared_at").defaultNow().notNull(),
+}, (table) => [
+  // One mastery declaration per user per topic
+  unique("unique_user_topic").on(table.userId, table.topicId),
+]);
+
+export const topicMasteryRelations = relations(topicMastery, ({ one }) => ({
+  user: one(users, {
+    fields: [topicMastery.userId],
+    references: [users.id],
+  }),
+  conversation: one(conversations, {
+    fields: [topicMastery.conversationId],
+    references: [conversations.id],
+  }),
+}));
+
+// API errors - for tech metrics error rate tracking
+export const apiErrors = pgTable("api_errors", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  endpoint: text("endpoint").notNull(),
+  statusCode: integer("status_code").notNull(),
+  errorMessage: text("error_message"),
+  userId: uuid("user_id").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_api_errors_created").on(table.createdAt),
+]);
+
+export const apiErrorsRelations = relations(apiErrors, ({ one }) => ({
+  user: one(users, {
+    fields: [apiErrors.userId],
+    references: [users.id],
+  }),
+}));
+
 export type User = typeof users.$inferSelect;
 export type Session = typeof sessions.$inferSelect;
 export type Conversation = typeof conversations.$inferSelect;
@@ -161,3 +206,5 @@ export type Feedback = typeof feedback.$inferSelect;
 export type SystemPrompt = typeof systemPrompts.$inferSelect;
 export type Chapter = typeof chapters.$inferSelect;
 export type Topic = typeof topics.$inferSelect;
+export type TopicMastery = typeof topicMastery.$inferSelect;
+export type ApiError = typeof apiErrors.$inferSelect;

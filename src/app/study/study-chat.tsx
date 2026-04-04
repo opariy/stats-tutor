@@ -69,6 +69,8 @@ export default function StudyChat() {
   const [showSidebar, setShowSidebar] = useState(false);
   const [sidebarKey, setSidebarKey] = useState(0); // To force refresh sidebar
   const [examplePrompts, setExamplePrompts] = useState(EXAMPLE_PROMPTS.slice(0, 3));
+  const [masteryDeclared, setMasteryDeclared] = useState(false);
+  const [declaringMastery, setDeclaringMastery] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Initialize session and randomize example prompts
@@ -99,8 +101,35 @@ export default function StudyChat() {
   // Handle selecting a conversation from sidebar
   const handleSelectConversation = async (conversation: Conversation) => {
     setActiveConversation(conversation);
+    setMasteryDeclared(false); // Reset mastery state for new conversation
     await loadConversation(conversation.id);
     setShowSidebar(false);
+  };
+
+  // Handle declaring topic mastery
+  const handleDeclareMastery = async () => {
+    if (!activeConversation?.id || !activeConversation?.topicId || declaringMastery || masteryDeclared) return;
+
+    setDeclaringMastery(true);
+    try {
+      const res = await fetch("/api/mastery", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId,
+          conversationId: activeConversation.id,
+          topicId: activeConversation.topicId,
+        }),
+      });
+
+      if (res.ok) {
+        setMasteryDeclared(true);
+      }
+    } catch (error) {
+      console.error("Failed to declare mastery:", error);
+    } finally {
+      setDeclaringMastery(false);
+    }
   };
 
   // Handle creating a new chat - no topic selection, just start chatting
@@ -108,6 +137,7 @@ export default function StudyChat() {
     setActiveConversation(null);
     setMessages([]);
     setFeedbackGiven({});
+    setMasteryDeclared(false);
     setShowSidebar(false);
     setExamplePrompts(getRandomPrompts()); // Refresh example prompts
   };
@@ -197,9 +227,27 @@ export default function StudyChat() {
       // Refresh sidebar to show updated conversation
       setSidebarKey((k) => k + 1);
 
-      // Refresh again after title generation completes (async)
+      // Refresh again after title generation and topic tagging completes (async)
       if (newMessages.length <= 2) {
         setTimeout(() => setSidebarKey((k) => k + 1), 3000);
+      }
+
+      // Poll for topicId if conversation doesn't have one yet (auto-tagging is async)
+      if (convId && !activeConversation?.topicId) {
+        const pollForTopic = async () => {
+          try {
+            const res = await fetch(`/api/conversations/${convId}`);
+            const data = await res.json();
+            if (data.conversation?.topicId) {
+              setActiveConversation(data.conversation);
+            }
+          } catch {
+            // Ignore polling errors
+          }
+        };
+        // Poll after 2s and 5s to catch async topic tagging
+        setTimeout(pollForTopic, 2000);
+        setTimeout(pollForTopic, 5000);
       }
     } catch (error) {
       console.error("Failed to send message:", error);
@@ -291,16 +339,58 @@ export default function StudyChat() {
             </Link>
           </div>
 
-          {/* New chat button */}
-          <button
-            onClick={handleNewChat}
-            className="p-2 text-stone-400 hover:text-stone-600 hover:bg-stone-100 rounded-lg transition-colors"
-            title="New chat"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-          </button>
+          <div className="flex items-center gap-2">
+            {/* "I understand" button - only shows for topic conversations with messages */}
+            {activeConversation?.topicId && messages.length > 0 && (
+              <button
+                onClick={handleDeclareMastery}
+                disabled={declaringMastery || masteryDeclared}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                  masteryDeclared
+                    ? "bg-emerald-100 text-emerald-700 cursor-default"
+                    : declaringMastery
+                    ? "bg-stone-100 text-stone-400 cursor-wait"
+                    : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
+                }`}
+                title={masteryDeclared ? "Topic mastered!" : "Mark this topic as understood"}
+              >
+                {masteryDeclared ? (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span className="hidden sm:inline">Got it!</span>
+                  </>
+                ) : declaringMastery ? (
+                  <>
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    <span className="hidden sm:inline">Saving...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="hidden sm:inline">I understand</span>
+                  </>
+                )}
+              </button>
+            )}
+
+            {/* New chat button */}
+            <button
+              onClick={handleNewChat}
+              className="p-2 text-stone-400 hover:text-stone-600 hover:bg-stone-100 rounded-lg transition-colors"
+              title="New chat"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Messages or Empty State */}
