@@ -9,14 +9,17 @@ export default function Home() {
     <div className="min-h-screen bg-stone-50">
       {/* Header */}
       <header className="max-w-4xl mx-auto px-6 pt-6">
-        <Link href="/" className="inline-block hover:opacity-80 transition-opacity">
+        <Link href="/" className="inline-flex items-center gap-3 group">
           <Image
-            src="/logo-text.png"
+            src="/logo.png"
             alt="Krokyo"
-            width={120}
+            width={40}
             height={40}
-            className="h-10 w-auto"
+            className="rounded-xl"
           />
+          <span className="font-display text-xl font-bold text-stone-900 tracking-tight group-hover:text-teal-700 transition-colors">
+            Krokyo
+          </span>
         </Link>
       </header>
 

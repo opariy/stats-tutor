@@ -272,14 +272,17 @@ export default function ChatSidebar({
     <div className="bg-white border-r border-stone-200 w-72 flex flex-col h-full">
       {/* Logo Header */}
       <div className="p-4 border-b border-stone-200">
-        <Link href="/" className="block hover:opacity-80 transition-opacity">
+        <Link href="/" className="flex items-center gap-3 group">
           <Image
-            src="/logo-text.png"
+            src="/logo.png"
             alt="Krokyo"
-            width={120}
+            width={40}
             height={40}
-            className="h-10 w-auto"
+            className="rounded-xl"
           />
+          <span className="font-display text-xl font-bold text-stone-900 tracking-tight group-hover:text-teal-700 transition-colors">
+            Krokyo
+          </span>
         </Link>
       </div>
 

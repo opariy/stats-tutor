@@ -276,16 +276,18 @@ export default function StudyChat() {
               </svg>
             </button>
 
-            <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+            <Link href="/" className="flex items-center gap-3 group">
               <Image
-                src="/logo-text.png"
+                src="/logo.png"
                 alt="Krokyo"
-                width={100}
-                height={32}
-                className="h-8 w-auto"
+                width={40}
+                height={40}
+                className="rounded-xl"
               />
-              <span className="text-xs text-stone-400 hidden sm:inline">|</span>
-              <span className="text-xs text-stone-500 hidden sm:inline">Ask me anything about statistics</span>
+              <div>
+                <h1 className="font-display text-lg font-bold text-stone-900 tracking-tight group-hover:text-teal-700 transition-colors">Krokyo</h1>
+                <p className="text-xs text-stone-500 hidden sm:block">Ask me anything about statistics</p>
+              </div>
             </Link>
           </div>
 

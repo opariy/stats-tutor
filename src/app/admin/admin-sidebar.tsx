@@ -58,16 +58,19 @@ export default function AdminSidebar() {
   return (
     <aside className="w-[280px] bg-white border-r border-stone-200 min-h-screen fixed left-0 top-0 flex flex-col">
       <div className="p-6 border-b border-stone-200">
-        <Link href="/" className="block hover:opacity-80 transition-opacity">
+        <Link href="/" className="flex items-center gap-3 group">
           <Image
-            src="/logo-text.png"
+            src="/logo.png"
             alt="Krokyo"
-            width={120}
+            width={40}
             height={40}
-            className="h-10 w-auto"
+            className="rounded-xl"
           />
+          <div>
+            <h1 className="font-display text-xl font-bold text-stone-900 tracking-tight group-hover:text-teal-700 transition-colors">Krokyo</h1>
+            <span className="text-xs text-stone-500 font-medium">Admin Panel</span>
+          </div>
         </Link>
-        <span className="text-xs text-stone-500 font-medium mt-2 block">Admin Panel</span>
       </div>
 
       <nav className="flex-1 p-4">
