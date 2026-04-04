@@ -121,11 +121,10 @@ export default function StudyChat() {
     }
   };
 
-  // Handle sending a message
-  const handleSend = async () => {
-    if (!input.trim() || isLoading || !sessionId) return;
-
-    const messageContent = input.trim();
+  // Handle sending a message (optionally with a direct prompt)
+  const handleSend = async (directPrompt?: string) => {
+    const messageContent = directPrompt?.trim() || input.trim();
+    if (!messageContent || isLoading || !sessionId) return;
 
     // Create conversation if none active
     let convId = activeConversation?.id;
@@ -277,18 +276,16 @@ export default function StudyChat() {
               </svg>
             </button>
 
-            <Link href="/" className="flex items-center gap-3 group">
+            <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
               <Image
-                src="/logo.png"
+                src="/logo-text.png"
                 alt="Krokyo"
-                width={40}
-                height={40}
-                className="rounded-xl"
+                width={100}
+                height={32}
+                className="h-8 w-auto"
               />
-              <div>
-                <h1 className="font-display text-sm font-semibold text-stone-900 group-hover:text-teal-700 transition-colors">Krokyo</h1>
-                <p className="text-xs text-stone-500">Ask me anything about statistics</p>
-              </div>
+              <span className="text-xs text-stone-400 hidden sm:inline">|</span>
+              <span className="text-xs text-stone-500 hidden sm:inline">Ask me anything about statistics</span>
             </Link>
           </div>
 
@@ -337,7 +334,7 @@ export default function StudyChat() {
                   autoFocus
                 />
                 <button
-                  onClick={handleSend}
+                  onClick={() => handleSend()}
                   disabled={!input.trim()}
                   className="bg-primary-gradient disabled:opacity-40 text-white p-3 rounded-full transition-all hover:shadow-lg disabled:hover:shadow-none"
                 >
@@ -355,14 +352,7 @@ export default function StudyChat() {
                 {examplePrompts.map((example, i) => (
                   <button
                     key={i}
-                    onClick={() => {
-                      setInput(example.prompt);
-                      // Auto-submit after setting input
-                      setTimeout(() => {
-                        const input = document.querySelector('input[type="text"]') as HTMLInputElement;
-                        input?.focus();
-                      }, 100);
-                    }}
+                    onClick={() => handleSend(example.prompt)}
                     className="group flex items-center gap-3 text-left bg-white hover:bg-teal-50 border border-stone-200 hover:border-teal-200 text-stone-600 hover:text-teal-700 px-4 py-3 rounded-xl transition-all shadow-soft-sm hover:shadow-soft-md"
                   >
                     <span className="w-6 h-6 flex items-center justify-center bg-stone-100 group-hover:bg-teal-100 rounded-lg text-stone-400 group-hover:text-teal-600 transition-colors">
@@ -517,7 +507,7 @@ export default function StudyChat() {
                   className="flex-1 border border-stone-200 rounded-full px-5 py-3 text-stone-900 placeholder-stone-400 focus:outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-600/10 text-sm bg-stone-50 transition-all"
                 />
                 <button
-                  onClick={handleSend}
+                  onClick={() => handleSend()}
                   disabled={isLoading || !input.trim()}
                   className="bg-primary-gradient disabled:opacity-40 text-white p-3 rounded-full transition-all hover:shadow-lg disabled:hover:shadow-none"
                 >

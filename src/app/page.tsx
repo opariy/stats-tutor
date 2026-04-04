@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { chapters } from "@/lib/topics";
 
 export default function Home() {
@@ -6,10 +7,30 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-stone-50">
+      {/* Header */}
+      <header className="max-w-4xl mx-auto px-6 pt-6">
+        <Link href="/" className="inline-block hover:opacity-80 transition-opacity">
+          <Image
+            src="/logo-text.png"
+            alt="Krokyo"
+            width={120}
+            height={40}
+            className="h-10 w-auto"
+          />
+        </Link>
+      </header>
+
       {/* Hero */}
-      <div className="max-w-4xl mx-auto px-6 pt-20 pb-16 text-center">
-        <div className="w-16 h-16 bg-primary-gradient rounded-2xl flex items-center justify-center mx-auto mb-8 shadow-soft-md">
-          <span className="text-3xl">📊</span>
+      <div className="max-w-4xl mx-auto px-6 pt-14 pb-16 text-center">
+        <div className="relative w-20 h-20 mx-auto mb-8">
+          <div className="absolute inset-0 bg-primary-gradient rounded-2xl blur-sm opacity-50 scale-110" />
+          <Image
+            src="/logo.png"
+            alt="Krokyo"
+            width={80}
+            height={80}
+            className="relative rounded-2xl shadow-soft-md"
+          />
         </div>
         <h1 className="font-display text-5xl font-bold text-stone-900 mb-4 tracking-tight">
           Learn anything with AI
@@ -142,7 +163,14 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="border-t border-stone-200 mt-8">
-        <div className="max-w-4xl mx-auto px-6 py-8 text-center text-sm text-stone-500">
+        <div className="max-w-4xl mx-auto px-6 py-8 flex items-center justify-center gap-3 text-sm text-stone-500">
+          <Image
+            src="/logo.png"
+            alt="Krokyo"
+            width={24}
+            height={24}
+            className="rounded-md opacity-60"
+          />
           <p>Built for engineering statistics students.</p>
         </div>
       </footer>
