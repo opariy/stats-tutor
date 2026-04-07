@@ -168,7 +168,7 @@ export default function DemoAnalyticsPage() {
           </div>
           <Link
             href="/demo"
-            className="text-sm text-stone-500 hover:text-stone-700"
+            className="text-sm text-stone-500 hover:text-stone-700 px-2 py-2"
           >
             ← Back to Demo Chats
           </Link>
