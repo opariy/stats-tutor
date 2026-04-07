@@ -3,8 +3,6 @@ import Image from "next/image";
 import { chapters } from "@/lib/topics";
 
 export default function Home() {
-  const totalTopics = chapters.reduce((sum, ch) => sum + ch.topics.length, 0);
-
   return (
     <div className="min-h-screen bg-stone-50">
       {/* Header */}
@@ -24,8 +22,8 @@ export default function Home() {
       </header>
 
       {/* Hero */}
-      <div className="max-w-4xl mx-auto px-6 pt-14 pb-16 text-center">
-        <div className="relative w-20 h-20 mx-auto mb-8">
+      <div className="max-w-4xl mx-auto px-6 pt-10 pb-4 text-center">
+        <div className="relative w-20 h-20 mx-auto mb-6">
           <div className="absolute inset-0 bg-primary-gradient rounded-2xl blur-sm opacity-50 scale-110" />
           <Image
             src="/logo.png"
@@ -38,13 +36,9 @@ export default function Home() {
         <h1 className="font-display text-5xl font-bold text-stone-900 mb-4 tracking-tight">
           Learn anything with AI
         </h1>
-        <p className="text-xl text-stone-600 mb-2">
+        <p className="text-xl text-stone-600 mb-6">
           Engineering Statistics: Chapters 1-10
         </p>
-        <p className="text-stone-500 mb-10">
-          {totalTopics} topics &bull; Socratic tutoring &bull; Free
-        </p>
-
         <Link
           href="/study"
           className="inline-flex items-center gap-2 bg-primary-gradient text-white font-semibold px-8 py-4 rounded-xl text-lg transition-all hover:shadow-lg hover:-translate-y-0.5"
@@ -55,19 +49,15 @@ export default function Home() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
           </svg>
         </Link>
-
-        <p className="text-stone-400 text-sm mt-5">
-          No login required &bull; Your chat history is saved
-        </p>
       </div>
 
       {/* How it works */}
-      <div className="max-w-4xl mx-auto px-6 py-12">
-        <div className="bg-white border border-stone-200 rounded-2xl p-10 shadow-soft-md">
-          <h2 className="font-display text-xl font-semibold text-stone-900 mb-8 text-center tracking-tight">
+      <div className="max-w-4xl mx-auto px-6 py-4">
+        <div className="bg-white border border-stone-200 rounded-2xl p-6 shadow-soft-md">
+          <h2 className="font-display text-xl font-semibold text-stone-900 mb-4 text-center tracking-tight">
             How it works
           </h2>
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-3 gap-6">
             <div className="text-center">
               <div className="w-12 h-12 bg-primary-gradient text-white rounded-xl flex items-center justify-center mx-auto mb-4 font-display font-semibold shadow-soft-sm">
                 1
@@ -94,8 +84,8 @@ export default function Home() {
       </div>
 
       {/* Topics covered */}
-      <div className="max-w-4xl mx-auto px-6 py-12">
-        <h2 className="font-display text-xl font-semibold text-stone-900 mb-8 text-center tracking-tight">
+      <div className="max-w-4xl mx-auto px-6 pt-4 pb-4">
+        <h2 className="font-display text-xl font-semibold text-stone-900 mb-4 text-center tracking-tight">
           Topics Covered
         </h2>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -119,7 +109,7 @@ export default function Home() {
       </div>
 
       {/* Features */}
-      <div className="max-w-4xl mx-auto px-6 py-12">
+      <div className="max-w-4xl mx-auto px-6 py-4">
         <div className="grid md:grid-cols-2 gap-6">
           <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-6">
             <div className="flex items-center gap-3 mb-3">
@@ -151,7 +141,7 @@ export default function Home() {
       </div>
 
       {/* CTA */}
-      <div className="max-w-4xl mx-auto px-6 py-16 text-center">
+      <div className="max-w-4xl mx-auto px-6 py-6 text-center">
         <Link
           href="/study"
           className="inline-flex items-center gap-2 bg-primary-gradient text-white font-semibold px-8 py-4 rounded-xl text-lg transition-all hover:shadow-lg hover:-translate-y-0.5"
@@ -165,7 +155,7 @@ export default function Home() {
       </div>
 
       {/* Footer */}
-      <footer className="border-t border-stone-200 mt-8">
+      <footer className="border-t border-stone-200">
         <div className="max-w-4xl mx-auto px-6 py-8 flex items-center justify-between text-sm text-stone-500">
           <div className="flex items-center gap-3">
             <Image

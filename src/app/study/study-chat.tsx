@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
@@ -83,6 +84,8 @@ export default function StudyChat() {
   const [declaringMastery, setDeclaringMastery] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const searchParams = useSearchParams();
+  const fromDemo = searchParams.get("from") === "demo";
 
   // Initialize session and randomize example prompts
   useEffect(() => {
@@ -351,13 +354,15 @@ export default function StudyChat() {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Back to demo link */}
-            <Link
-              href="/demo"
-              className="text-sm text-stone-500 hover:text-stone-700"
-            >
-              ← Back to Demo
-            </Link>
+            {/* Back to demo link - only show if came from demo */}
+            {fromDemo && (
+              <Link
+                href="/demo"
+                className="text-sm text-stone-500 hover:text-stone-700"
+              >
+                ← Back to Demo
+              </Link>
+            )}
 
             {/* Feedback button */}
             <button

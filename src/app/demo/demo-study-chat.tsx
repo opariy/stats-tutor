@@ -63,7 +63,7 @@ export default function DemoStudyChat() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
           </svg>
           Demo Mode — Browse sample conversations (read-only)
-          <Link href="/study" className="ml-2 underline hover:no-underline">
+          <Link href="/study?from=demo" className="ml-2 underline hover:no-underline">
             Try it yourself →
           </Link>
         </span>
@@ -119,15 +119,15 @@ export default function DemoStudyChat() {
             </Link>
           </div>
 
-          {/* Analytics Button */}
+          {/* Dashboard Button */}
           <Link
-            href="/demo/analytics"
+            href="/demo"
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-violet-700 bg-violet-50 hover:bg-violet-100 rounded-lg transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
-            <span className="hidden sm:inline">Analytics</span>
+            <span className="hidden sm:inline">Dashboard</span>
           </Link>
         </div>
 
@@ -166,13 +166,6 @@ export default function DemoStudyChat() {
                 <span>See how Socratic questioning guides learning</span>
               </div>
             </div>
-
-            <Link
-              href="/study"
-              className="mt-8 bg-primary-gradient text-white px-6 py-3 rounded-full font-medium hover:shadow-lg transition-all"
-            >
-              Try Krokyo Yourself →
-            </Link>
           </div>
         ) : (
           <>
@@ -237,7 +230,7 @@ export default function DemoStudyChat() {
                   Demo mode — messages are read-only
                 </div>
                 <Link
-                  href="/study"
+                  href="/study?from=demo"
                   className="bg-primary-gradient text-white px-5 py-3 rounded-full text-sm font-medium hover:shadow-lg transition-all whitespace-nowrap"
                 >
                   Try it yourself
