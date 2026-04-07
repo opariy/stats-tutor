@@ -95,7 +95,7 @@ export function ReviewSessionButton({ daysUntilExam }: ReviewSessionModalProps) 
       <button
         onClick={handleGenerate}
         disabled={isGenerating}
-        className="text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+        className="text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 px-4 py-2.5 rounded-lg transition-colors flex items-center gap-2"
       >
         {isGenerating ? (
           <>
