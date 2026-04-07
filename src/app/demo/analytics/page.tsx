@@ -144,6 +144,7 @@ export default function DemoAnalyticsPage() {
                 width={40}
                 height={40}
                 className="rounded-xl"
+                style={{ width: 'auto', height: 'auto' }}
               />
               <div>
                 <h1 className="font-display text-lg font-bold text-stone-900 tracking-tight group-hover:text-teal-700 transition-colors">
