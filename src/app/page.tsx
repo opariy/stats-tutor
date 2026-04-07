@@ -166,15 +166,23 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="border-t border-stone-200 mt-8">
-        <div className="max-w-4xl mx-auto px-6 py-8 flex items-center justify-center gap-3 text-sm text-stone-500">
-          <Image
-            src="/logo.png"
-            alt="Krokyo"
-            width={24}
-            height={24}
-            className="rounded-md opacity-60"
-          />
-          <p>Built for engineering statistics students.</p>
+        <div className="max-w-4xl mx-auto px-6 py-8 flex items-center justify-between text-sm text-stone-500">
+          <div className="flex items-center gap-3">
+            <Image
+              src="/logo.png"
+              alt="Krokyo"
+              width={24}
+              height={24}
+              className="rounded-md opacity-60"
+            />
+            <p>Built for engineering statistics students.</p>
+          </div>
+          <Link
+            href="/professor"
+            className="text-stone-400 hover:text-teal-600 transition-colors"
+          >
+            For Professors
+          </Link>
         </div>
       </footer>
     </div>

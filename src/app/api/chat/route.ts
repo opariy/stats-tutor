@@ -8,7 +8,9 @@ import { logApiError } from "@/lib/api-error-logger";
 const anthropic = new Anthropic();
 
 async function getOrCreateUser(sessionId: string, group: "krokyo" | "control") {
-  const email = `anon-${sessionId}@stats-tutor.local`;
+  // Check if sessionId is an email (enrolled user) or anonymous ID
+  const isEmail = sessionId.includes("@") && !sessionId.startsWith("anon-");
+  const email = isEmail ? sessionId.toLowerCase() : `anon-${sessionId}@stats-tutor.local`;
 
   let user = await db.query.users.findFirst({
     where: eq(users.email, email),

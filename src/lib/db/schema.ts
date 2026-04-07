@@ -22,6 +22,7 @@ export const conversations = pgTable("conversations", {
   userId: uuid("user_id").references(() => users.id).notNull(),
   topicId: text("topic_id"),  // null = general/legacy conversation
   title: text("title").notNull().default(''),
+  isDemo: boolean("is_demo").default(false),  // true = demo conversation for showcase
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -208,3 +209,105 @@ export type Chapter = typeof chapters.$inferSelect;
 export type Topic = typeof topics.$inferSelect;
 export type TopicMastery = typeof topicMastery.$inferSelect;
 export type ApiError = typeof apiErrors.$inferSelect;
+
+// Professor accounts (bcrypt passwords for external users)
+export const professors = pgTable("professors", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  email: text("email").notNull().unique(),
+  name: text("name").notNull(),
+  passwordHash: text("password_hash").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Courses
+export const courses = pgTable("courses", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  professorId: uuid("professor_id").references(() => professors.id).notNull(),
+  name: text("name").notNull(),
+  code: text("code").notNull().unique(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Student enrollments (manual for pilots)
+export const courseEnrollments = pgTable("course_enrollments", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  courseId: uuid("course_id").references(() => courses.id).notNull(),
+  userId: uuid("user_id").references(() => users.id).notNull(),
+  enrolledAt: timestamp("enrolled_at").defaultNow().notNull(),
+}, (table) => [
+  unique("unique_course_user").on(table.courseId, table.userId),
+  index("idx_enrollments_course").on(table.courseId),
+  index("idx_enrollments_user").on(table.userId),
+]);
+
+// Cached AI suggestions (24h cache)
+export const professorInsights = pgTable("professor_insights", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  courseId: uuid("course_id").references(() => courses.id).notNull(),
+  topicId: text("topic_id").notNull(),
+  cacheDate: text("cache_date").notNull(),
+  suggestion: text("suggestion").notNull(),
+  studentCount: integer("student_count").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  unique("unique_insight").on(table.courseId, table.topicId, table.cacheDate),
+]);
+
+// Bug reports / user feedback
+export const bugReports = pgTable("bug_reports", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").references(() => users.id),
+  type: text("type", { enum: ["bug", "feedback", "feature"] }).notNull(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  page: text("page"), // URL/page where the issue occurred
+  status: text("status", { enum: ["new", "in-progress", "resolved", "closed"] }).default("new").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  resolvedAt: timestamp("resolved_at"),
+});
+
+export const bugReportsRelations = relations(bugReports, ({ one }) => ({
+  user: one(users, {
+    fields: [bugReports.userId],
+    references: [users.id],
+  }),
+}));
+
+export type BugReport = typeof bugReports.$inferSelect;
+
+// Professor relations
+export const professorsRelations = relations(professors, ({ many }) => ({
+  courses: many(courses),
+}));
+
+export const coursesRelations = relations(courses, ({ one, many }) => ({
+  professor: one(professors, {
+    fields: [courses.professorId],
+    references: [professors.id],
+  }),
+  enrollments: many(courseEnrollments),
+  insights: many(professorInsights),
+}));
+
+export const courseEnrollmentsRelations = relations(courseEnrollments, ({ one }) => ({
+  course: one(courses, {
+    fields: [courseEnrollments.courseId],
+    references: [courses.id],
+  }),
+  user: one(users, {
+    fields: [courseEnrollments.userId],
+    references: [users.id],
+  }),
+}));
+
+export const professorInsightsRelations = relations(professorInsights, ({ one }) => ({
+  course: one(courses, {
+    fields: [professorInsights.courseId],
+    references: [courses.id],
+  }),
+}));
+
+export type Professor = typeof professors.$inferSelect;
+export type Course = typeof courses.$inferSelect;
+export type CourseEnrollment = typeof courseEnrollments.$inferSelect;
+export type ProfessorInsight = typeof professorInsights.$inferSelect;

@@ -1,5 +1,15 @@
 @AGENTS.md
 
+## UI Changes - MANDATORY
+Before asking the user to verify any UI changes:
+1. Kill all node/next processes: `pkill -9 -f "next" 2>/dev/null`
+2. Delete .next cache: `rm -rf .next`
+3. Restart dev server: `npm run dev`
+4. Wait for server to be ready
+5. THEN ask user to refresh (preferably in incognito)
+
+Never ask "refresh to see changes" without doing the above first.
+
 ## Design System
 Always read DESIGN.md before making any visual or UI decisions.
 All font choices, colors, spacing, and aesthetic direction are defined there.

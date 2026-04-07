@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import ChatSidebar from "./chat-sidebar";
+import FeedbackModal from "../components/feedback-modal";
 
 type Message = {
   role: "user" | "assistant";
@@ -36,6 +37,15 @@ const EXAMPLE_PROMPTS = [
 
 function getOrCreateSessionId(): string {
   if (typeof window === "undefined") return "";
+
+  // First, check if user has an email (enrolled via /join)
+  const email = localStorage.getItem("stats-tutor-email");
+  if (email) {
+    // Use email as session identifier (will be used to find/create user)
+    return email;
+  }
+
+  // Fall back to anonymous session for non-enrolled users
   const stored = localStorage.getItem("stats-tutor-session");
   if (stored) return stored;
   const sessionId = crypto.randomUUID();
@@ -71,6 +81,7 @@ export default function StudyChat() {
   const [examplePrompts, setExamplePrompts] = useState(EXAMPLE_PROMPTS.slice(0, 3));
   const [masteryDeclared, setMasteryDeclared] = useState(false);
   const [declaringMastery, setDeclaringMastery] = useState(false);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Initialize session and randomize example prompts
@@ -340,45 +351,24 @@ export default function StudyChat() {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* "I understand" button - only shows for topic conversations with messages */}
-            {activeConversation?.topicId && messages.length > 0 && (
-              <button
-                onClick={handleDeclareMastery}
-                disabled={declaringMastery || masteryDeclared}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                  masteryDeclared
-                    ? "bg-emerald-100 text-emerald-700 cursor-default"
-                    : declaringMastery
-                    ? "bg-stone-100 text-stone-400 cursor-wait"
-                    : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
-                }`}
-                title={masteryDeclared ? "Topic mastered!" : "Mark this topic as understood"}
-              >
-                {masteryDeclared ? (
-                  <>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                    <span className="hidden sm:inline">Got it!</span>
-                  </>
-                ) : declaringMastery ? (
-                  <>
-                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                    <span className="hidden sm:inline">Saving...</span>
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span className="hidden sm:inline">I understand</span>
-                  </>
-                )}
-              </button>
-            )}
+            {/* Back to demo link */}
+            <Link
+              href="/demo"
+              className="text-sm text-stone-500 hover:text-stone-700"
+            >
+              ← Back to Demo
+            </Link>
+
+            {/* Feedback button */}
+            <button
+              onClick={() => setShowFeedbackModal(true)}
+              className="p-2 text-stone-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+              title="Send feedback or report a bug"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" />
+              </svg>
+            </button>
 
             {/* New chat button */}
             <button
@@ -392,6 +382,13 @@ export default function StudyChat() {
             </button>
           </div>
         </div>
+
+        {/* Feedback Modal */}
+        <FeedbackModal
+          isOpen={showFeedbackModal}
+          onClose={() => setShowFeedbackModal(false)}
+          sessionId={sessionId}
+        />
 
         {/* Messages or Empty State */}
         {messages.length === 0 && !isLoading ? (
