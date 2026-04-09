@@ -50,7 +50,7 @@ export async function POST(
 
     // Use Claude to generate a short title
     const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
+      model: "claude-sonnet-4-0",
       max_tokens: 50,
       messages: [
         {

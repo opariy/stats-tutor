@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
 
     // Use Anthropic SDK directly with streaming
     const stream = anthropic.messages.stream({
-      model: "claude-sonnet-4-6",
+      model: "claude-sonnet-4-0",
       max_tokens: 1024,
       system: systemPrompt,
       messages: chatMessages.map((m: { role: string; content: string }) => ({

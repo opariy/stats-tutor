@@ -129,7 +129,7 @@ Return ONLY the JSON array, no other text.`;
 
   try {
     const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
+      model: "claude-sonnet-4-0",
       max_tokens: scenario === "gold" ? 4000 : 2000,
       messages: [{ role: "user", content: prompt }],
     });

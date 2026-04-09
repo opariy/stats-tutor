@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
 
     // Use Claude to classify topics
     const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
+      model: "claude-sonnet-4-0",
       max_tokens: 200,
       messages: [
         {
