@@ -21,8 +21,9 @@ export async function POST(request: NextRequest) {
     // Parse PDF using unpdf
     const { text } = await extractText(buffer);
 
-    // Clean up the text - remove excessive whitespace
-    const cleanedText = text
+    // Join pages and clean up the text - remove excessive whitespace
+    const joinedText = Array.isArray(text) ? text.join("\n\n") : text;
+    const cleanedText = joinedText
       .replace(/\n{3,}/g, "\n\n")
       .replace(/[ \t]+/g, " ")
       .trim();
