@@ -155,7 +155,8 @@ export async function POST(request: Request) {
                   controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "curriculum", curriculum })}\n\n`));
                 } catch (toolError) {
                   console.error("Tool execution error:", toolError);
-                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "error", error: "Failed to generate curriculum" })}\n\n`));
+                  const errorMessage = toolError instanceof Error ? toolError.message : "Failed to generate curriculum";
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "error", error: errorMessage })}\n\n`));
                 }
               }
 
