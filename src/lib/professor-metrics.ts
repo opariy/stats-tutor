@@ -222,7 +222,7 @@ async function generateStuckPointSuggestion(
 ): Promise<string> {
   try {
     const result = await generateText({
-      model: "anthropic/claude-3-5-sonnet-20241022",
+      model: "anthropic/claude-3-5-sonnet-latest",
       prompt: `${studentCount} students are struggling with "${topicName}" (${topicDescription}).
 
 As an experienced statistics professor, suggest ONE specific intervention the instructor could try in class. Be concise (2-3 sentences max). Focus on a common misconception or teaching approach that helps.

@@ -89,7 +89,7 @@ export async function POST(request: Request) {
 
     // Create streaming response with tool use
     const response = await anthropic.messages.create({
-      model: "claude-3-5-sonnet-20241022",
+      model: "claude-3-5-sonnet-latest",
       max_tokens: 1024,
       system: SYSTEM_PROMPT,
       tools: [TOOL_DEFINITION],
