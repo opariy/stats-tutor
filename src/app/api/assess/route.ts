@@ -20,7 +20,7 @@ Generate ${questionCount} multiple-choice questions that test the topics from th
     : `Generate ${questionCount} multiple-choice questions that would typically appear on this exam.`;
 
   const response = await anthropic.messages.create({
-    model: "claude-3-5-sonnet-latest",
+    model: "claude-sonnet-4-6",
     max_tokens: 4000,
     messages: [
       {
