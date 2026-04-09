@@ -4,6 +4,34 @@ import type { Question } from "@/lib/assessment-types";
 
 const anthropic = new Anthropic();
 
+// Retry with exponential backoff for overloaded errors
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  baseDelay: number = 1000
+): Promise<T> {
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error as Error;
+      const isOverloaded =
+        error instanceof Anthropic.APIError &&
+        (error.status === 529 || error.message?.includes("Overloaded"));
+
+      if (!isOverloaded || attempt === maxRetries) {
+        throw error;
+      }
+
+      const delay = baseDelay * Math.pow(2, attempt);
+      console.log(`Anthropic overloaded, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  throw lastError;
+}
+
 // Generate curriculum-based multiple choice questions
 async function generateQuizQuestions(
   examName: string,
@@ -19,7 +47,7 @@ ${curriculum}
 Generate ${questionCount} multiple-choice questions that test the topics from this curriculum.`
     : `Generate ${questionCount} multiple-choice questions that would typically appear on this exam.`;
 
-  const response = await anthropic.messages.create({
+  const response = await withRetry(() => anthropic.messages.create({
     model: "claude-sonnet-4-0",
     max_tokens: 4000,
     messages: [
@@ -71,7 +99,7 @@ RULES:
 - Explanation should be 1-2 sentences explaining why the correct answer is right`,
       },
     ],
-  });
+  }));
 
   const textBlock = response.content[0];
   if (textBlock.type !== "text") {
@@ -127,6 +155,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });
   } catch (error) {
     console.error("Assessment API error:", error);
+
+    // Check if it's an Anthropic overload error after retries exhausted
+    if (error instanceof Anthropic.APIError && error.status === 529) {
+      return NextResponse.json(
+        { error: "AI service is temporarily busy. Please try again in a moment." },
+        { status: 503 }
+      );
+    }
+
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Assessment failed" },
       { status: 500 }
