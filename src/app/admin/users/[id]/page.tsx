@@ -164,7 +164,7 @@ export default function UserProfilePage() {
             </div>
             <div>
               <p className="text-xs text-stone-500 uppercase font-semibold tracking-wider mb-1">Joined</p>
-              <p className="text-sm text-stone-700">{new Date(user.createdAt).toLocaleDateString()}</p>
+              <p className="text-sm text-stone-700">{new Date(user.createdAt).toLocaleDateString("en-US", { timeZone: "America/Los_Angeles" })}</p>
             </div>
             <div>
               <p className="text-xs text-stone-500 uppercase font-semibold tracking-wider mb-1">Satisfaction</p>

@@ -7,6 +7,7 @@ import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import ChatSidebar from "./chat-sidebar";
 import FeedbackModal from "../components/feedback-modal";
+import MessageFeedbackModal from "../components/message-feedback-modal";
 
 type Message = {
   role: "user" | "assistant";
@@ -16,11 +17,32 @@ type Message = {
 type Conversation = {
   id: string;
   topicId: string | null;
+  courseId?: string | null;
   topicName?: string | null;
   title: string;
   createdAt: string;
   updatedAt: string;
   messageCount: number;
+};
+
+type CourseData = {
+  id: string;
+  name: string;
+  subjectDescription: string | null;
+  chapters: Array<{
+    id: string;
+    number: number;
+    title: string;
+    sortOrder?: number | null;
+    topics: Array<{
+      id: string;
+      slug: string;
+      name: string;
+      description: string | null;
+      suggestions: string[];
+      sortOrder?: number | null;
+    }>;
+  }>;
 };
 
 // Example prompts that rotate to help students discover what they can ask
@@ -83,21 +105,198 @@ export default function StudyChat() {
   const [masteryDeclared, setMasteryDeclared] = useState(false);
   const [declaringMastery, setDeclaringMastery] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [messageFeedback, setMessageFeedback] = useState<{
+    assistantIndex: number;
+    rating: "up" | "down";
+  } | null>(null);
+  const [courseData, setCourseData] = useState<CourseData | null>(null);
+  const [courseLoading, setCourseLoading] = useState(false);
+  const [autoStarted, setAutoStarted] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const autoStartTriggered = useRef(false);
   const searchParams = useSearchParams();
   const fromDemo = searchParams.get("from") === "demo";
+  const courseId = searchParams.get("course");
 
   // Initialize session and randomize example prompts
   useEffect(() => {
     setSessionId(getOrCreateSessionId());
     setGroup(getOrAssignGroup());
-    setExamplePrompts(getRandomPrompts());
-  }, []);
+    if (!courseId) {
+      setExamplePrompts(getRandomPrompts());
+    }
+  }, [courseId]);
+
+  // Load course data if courseId is present
+  useEffect(() => {
+    if (!courseId) {
+      setCourseData(null);
+      return;
+    }
+
+    const loadCourse = async () => {
+      setCourseLoading(true);
+      try {
+        const res = await fetch(`/api/courses/${courseId}`);
+        if (res.ok) {
+          const data = await res.json();
+          setCourseData(data.course);
+
+          // Generate example prompts from course topics
+          const allSuggestions: { label: string; prompt: string }[] = [];
+          data.course.chapters?.forEach((chapter: CourseData['chapters'][0]) => {
+            chapter.topics?.forEach((topic) => {
+              if (topic.suggestions && topic.suggestions.length > 0) {
+                topic.suggestions.forEach((suggestion: string) => {
+                  allSuggestions.push({ label: topic.name, prompt: suggestion });
+                });
+              } else {
+                allSuggestions.push({
+                  label: topic.name,
+                  prompt: `Help me understand ${topic.name}`,
+                });
+              }
+            });
+          });
+
+          // Pick 3 random suggestions
+          const shuffled = allSuggestions.sort(() => Math.random() - 0.5);
+          setExamplePrompts(shuffled.slice(0, 3));
+        }
+      } catch (error) {
+        console.error("Failed to load course:", error);
+      } finally {
+        setCourseLoading(false);
+      }
+    };
+
+    loadCourse();
+  }, [courseId]);
+
+  // Auto-start conversation when course loads (for new learners)
+  useEffect(() => {
+    // Only auto-start once per course session
+    if (autoStartTriggered.current) return;
+
+    // Only auto-start if:
+    // 1. We have course data
+    // 2. We have a session ID
+    // 3. No active conversation
+    // 4. No messages
+    // 5. Not currently loading
+    if (
+      courseData &&
+      sessionId &&
+      !activeConversation &&
+      messages.length === 0 &&
+      !isLoading &&
+      !courseLoading
+    ) {
+      autoStartTriggered.current = true;
+      setAutoStarted(true);
+
+      // Get the first chapter and topic
+      const firstChapter = [...courseData.chapters]
+        .sort((a, b) => a.number - b.number)[0];
+      const firstTopic = firstChapter?.topics
+        ? [...firstChapter.topics].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))[0]
+        : null;
+
+      if (firstTopic) {
+        // Auto-send a start learning prompt (inline implementation to avoid dependency)
+        const autoStart = async () => {
+          const messageContent = `I'm ready to start learning! Let's begin with ${firstTopic.name}.`;
+
+          // Create conversation
+          let convId: string | undefined;
+          try {
+            const res = await fetch("/api/conversations", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ sessionId, group, courseId }),
+            });
+            const data = await res.json();
+            if (data.conversation) {
+              setActiveConversation(data.conversation);
+              convId = data.conversation.id;
+              setSidebarKey((k) => k + 1);
+            }
+          } catch (error) {
+            console.error("Failed to create conversation:", error);
+            return;
+          }
+
+          const userMessage: Message = { role: "user", content: messageContent };
+          setMessages([userMessage]);
+          setIsLoading(true);
+
+          try {
+            const response = await fetch("/api/chat", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                messages: [userMessage],
+                group,
+                sessionId,
+                conversationId: convId,
+                courseId,
+              }),
+            });
+
+            if (!response.ok) throw new Error("Failed to get response");
+
+            const reader = response.body?.getReader();
+            const decoder = new TextDecoder();
+
+            if (!reader) throw new Error("No reader available");
+
+            let fullContent = "";
+            let hasStarted = false;
+
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+
+              const chunk = decoder.decode(value, { stream: true });
+              fullContent += chunk;
+
+              if (!hasStarted) {
+                hasStarted = true;
+                setMessages([userMessage, { role: "assistant", content: fullContent }]);
+              } else {
+                setMessages((prev) => {
+                  const updated = [...prev];
+                  updated[updated.length - 1] = { role: "assistant", content: fullContent };
+                  return updated;
+                });
+              }
+            }
+
+            setSidebarKey((k) => k + 1);
+          } catch (error) {
+            console.error("Failed to auto-start:", error);
+          } finally {
+            setIsLoading(false);
+          }
+        };
+
+        autoStart();
+      }
+    }
+  }, [courseData, sessionId, activeConversation, messages.length, isLoading, courseLoading, group, courseId]);
 
   // Scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Focus input when tutor finishes responding
+  useEffect(() => {
+    if (!isLoading && messages.length > 0) {
+      inputRef.current?.focus();
+    }
+  }, [isLoading, messages.length]);
 
   // Load conversation messages
   const loadConversation = async (conversationId: string) => {
@@ -177,7 +376,7 @@ export default function StudyChat() {
         const res = await fetch("/api/conversations", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sessionId, group }),
+          body: JSON.stringify({ sessionId, group, courseId: courseId || undefined }),
         });
         const data = await res.json();
         if (data.conversation) {
@@ -206,6 +405,7 @@ export default function StudyChat() {
           group,
           sessionId,
           conversationId: convId,
+          courseId: courseId || undefined,
         }),
       });
 
@@ -272,17 +472,53 @@ export default function StudyChat() {
 
   const handleFeedback = async (assistantIndex: number, rating: "up" | "down") => {
     if (feedbackGiven[assistantIndex]) return;
+
+    // Immediately record the rating
     setFeedbackGiven((prev) => ({ ...prev, [assistantIndex]: rating }));
 
     try {
       await fetch("/api/feedback", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId, messageIndex: assistantIndex, rating }),
+        body: JSON.stringify({
+          sessionId,
+          messageIndex: assistantIndex,
+          rating,
+        }),
       });
     } catch (error) {
       console.error("Failed to submit feedback:", error);
     }
+
+    // Show modal for optional comment
+    setMessageFeedback({ assistantIndex, rating });
+  };
+
+  const submitMessageFeedback = async (comment: string) => {
+    if (!messageFeedback || !comment.trim()) {
+      setMessageFeedback(null);
+      return;
+    }
+
+    const { assistantIndex, rating } = messageFeedback;
+
+    try {
+      // Update feedback with comment
+      await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId,
+          messageIndex: assistantIndex,
+          rating,
+          comment: comment.trim(),
+        }),
+      });
+    } catch (error) {
+      console.error("Failed to submit feedback comment:", error);
+    }
+
+    setMessageFeedback(null);
   };
 
   const getAssistantIndex = (messageIndex: number) => {
@@ -293,6 +529,11 @@ export default function StudyChat() {
     return count - 1;
   };
 
+  // Handle starting a topic from the curriculum
+  const handleStartTopic = (topicName: string) => {
+    handleSend(`Let's learn about ${topicName}.`);
+  };
+
   return (
     <div className="flex h-screen bg-stone-50">
       {/* Desktop Sidebar */}
@@ -300,10 +541,15 @@ export default function StudyChat() {
         <ChatSidebar
           key={sidebarKey}
           sessionId={sessionId}
+          courseId={courseId || undefined}
+          courseName={courseData?.name}
+          courseChapters={courseData?.chapters}
           activeConversationId={activeConversation?.id || null}
           onSelectConversation={handleSelectConversation}
           onNewChat={handleNewChat}
           onDeleteConversation={handleDeleteConversation}
+          onStartTopic={handleStartTopic}
+          onChangeDifficulty={() => window.location.href = "/learn/new"}
         />
       </div>
 
@@ -314,10 +560,15 @@ export default function StudyChat() {
             <ChatSidebar
               key={sidebarKey}
               sessionId={sessionId}
+              courseId={courseId || undefined}
+              courseName={courseData?.name}
+              courseChapters={courseData?.chapters}
               activeConversationId={activeConversation?.id || null}
               onSelectConversation={handleSelectConversation}
               onNewChat={handleNewChat}
               onDeleteConversation={handleDeleteConversation}
+              onStartTopic={handleStartTopic}
+              onChangeDifficulty={() => window.location.href = "/learn/new"}
             />
           </div>
         </div>
@@ -348,7 +599,9 @@ export default function StudyChat() {
               />
               <div>
                 <h1 className="font-display text-lg font-bold text-stone-900 tracking-tight group-hover:text-teal-700 transition-colors">Krokyo</h1>
-                <p className="text-xs text-stone-500 hidden sm:block">Ask me anything about statistics</p>
+                <p className="text-xs text-stone-500 hidden sm:block">
+                  {courseData ? courseData.name : "Ask me anything about statistics"}
+                </p>
               </div>
             </Link>
           </div>
@@ -395,8 +648,23 @@ export default function StudyChat() {
           sessionId={sessionId}
         />
 
+        {/* Message Feedback Modal */}
+        <MessageFeedbackModal
+          isOpen={messageFeedback !== null}
+          onClose={() => setMessageFeedback(null)}
+          onSubmit={submitMessageFeedback}
+          rating={messageFeedback?.rating || "up"}
+        />
+
         {/* Messages or Empty State */}
-        {messages.length === 0 && !isLoading ? (
+        {courseLoading ? (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <div className="w-12 h-12 border-4 border-teal-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-stone-500 text-sm">Loading course...</p>
+            </div>
+          </div>
+        ) : messages.length === 0 && !isLoading ? (
           <div className="flex-1 flex flex-col items-center justify-center p-6">
             <div className="relative mb-6">
               <div className="absolute inset-0 bg-primary-gradient rounded-2xl blur-sm opacity-50 scale-110" />
@@ -410,10 +678,12 @@ export default function StudyChat() {
             </div>
 
             <h1 className="font-display text-2xl font-bold text-stone-900 mb-2 tracking-tight">
-              What do you need help with?
+              {courseData ? `Let's learn ${courseData.name}` : "What do you need help with?"}
             </h1>
             <p className="text-stone-500 text-sm mb-6">
-              Ask any statistics question and I'll help you understand it
+              {courseData
+                ? "Ask any question about the topics in this course"
+                : "Ask any statistics question and I'll help you understand it"}
             </p>
 
             <div className="w-full max-w-lg">
@@ -593,6 +863,7 @@ export default function StudyChat() {
             <div className="border-t border-stone-200 p-5 bg-white">
               <div className="flex gap-3 max-w-2xl mx-auto">
                 <input
+                  ref={inputRef}
                   type="text"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}

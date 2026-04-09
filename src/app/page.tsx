@@ -1,6 +1,5 @@
 import Link from "next/link";
 import Image from "next/image";
-import { chapters } from "@/lib/topics";
 
 export default function Home() {
   return (
@@ -22,7 +21,7 @@ export default function Home() {
       </header>
 
       {/* Hero */}
-      <div className="max-w-4xl mx-auto px-6 pt-10 pb-4 text-center">
+      <div className="max-w-4xl mx-auto px-6 pt-16 pb-8 text-center">
         <div className="relative w-20 h-20 mx-auto mb-6">
           <div className="absolute inset-0 bg-primary-gradient rounded-2xl blur-sm opacity-50 scale-110" />
           <Image
@@ -36,80 +35,95 @@ export default function Home() {
         <h1 className="font-display text-5xl font-bold text-stone-900 mb-4 tracking-tight">
           Learn anything with AI
         </h1>
-        <p className="text-xl text-stone-600 mb-6">
-          Engineering Statistics: Chapters 1-10
+        <p className="text-xl text-stone-600 mb-8 max-w-2xl mx-auto">
+          Describe what you want to learn. AI generates a personalized curriculum and guides you through it step by step.
         </p>
-        <Link
-          href="/study"
-          className="inline-flex items-center gap-2 bg-primary-gradient text-white font-semibold px-8 py-4 rounded-xl text-lg transition-all hover:shadow-lg hover:-translate-y-0.5"
-          style={{ boxShadow: '0 4px 14px rgba(15, 118, 110, 0.25)' }}
-        >
-          Start Studying
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-          </svg>
-        </Link>
+        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <Link
+            href="/learn/new"
+            className="inline-flex items-center justify-center gap-2 bg-primary-gradient text-white font-semibold px-8 py-4 rounded-xl text-lg transition-all hover:shadow-lg hover:-translate-y-0.5"
+            style={{ boxShadow: '0 4px 14px rgba(15, 118, 110, 0.25)' }}
+          >
+            Start Learning
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+          </Link>
+          <Link
+            href="/assess/new"
+            className="inline-flex items-center justify-center gap-2 bg-white border-2 border-stone-200 text-stone-700 font-semibold px-8 py-4 rounded-xl text-lg transition-all hover:border-teal-300 hover:text-teal-700 hover:bg-teal-50/50"
+          >
+            Test My Knowledge
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </Link>
+        </div>
       </div>
 
       {/* How it works */}
-      <div className="max-w-4xl mx-auto px-6 py-4">
-        <div className="bg-white border border-stone-200 rounded-2xl p-6 shadow-soft-md">
-          <h2 className="font-display text-xl font-semibold text-stone-900 mb-4 text-center tracking-tight">
+      <div className="max-w-4xl mx-auto px-6 py-8">
+        <div className="bg-white border border-stone-200 rounded-2xl p-8 shadow-soft-md">
+          <h2 className="font-display text-xl font-semibold text-stone-900 mb-6 text-center tracking-tight">
             How it works
           </h2>
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-3 gap-8">
             <div className="text-center">
               <div className="w-12 h-12 bg-primary-gradient text-white rounded-xl flex items-center justify-center mx-auto mb-4 font-display font-semibold shadow-soft-sm">
                 1
               </div>
-              <h3 className="font-medium text-stone-900 mb-2">Pick a topic</h3>
-              <p className="text-sm text-stone-500">Browse by chapter or ask about anything</p>
+              <h3 className="font-medium text-stone-900 mb-2">Describe your goal</h3>
+              <p className="text-sm text-stone-500">Tell me what you want to learn - any subject, any level</p>
             </div>
             <div className="text-center">
               <div className="w-12 h-12 bg-primary-gradient text-white rounded-xl flex items-center justify-center mx-auto mb-4 font-display font-semibold shadow-soft-sm">
                 2
               </div>
-              <h3 className="font-medium text-stone-900 mb-2">Ask questions</h3>
-              <p className="text-sm text-stone-500">In plain English, about any concept</p>
+              <h3 className="font-medium text-stone-900 mb-2">Get a curriculum</h3>
+              <p className="text-sm text-stone-500">AI generates chapters and topics tailored to your needs</p>
             </div>
             <div className="text-center">
               <div className="w-12 h-12 bg-primary-gradient text-white rounded-xl flex items-center justify-center mx-auto mb-4 font-display font-semibold shadow-soft-sm">
                 3
               </div>
-              <h3 className="font-medium text-stone-900 mb-2">Learn by doing</h3>
-              <p className="text-sm text-stone-500">I&apos;ll guide you to understanding</p>
+              <h3 className="font-medium text-stone-900 mb-2">Learn interactively</h3>
+              <p className="text-sm text-stone-500">Work through topics with guided explanations and practice</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Topics covered */}
-      <div className="max-w-4xl mx-auto px-6 pt-4 pb-4">
-        <h2 className="font-display text-xl font-semibold text-stone-900 mb-4 text-center tracking-tight">
-          Topics Covered
+      {/* Example subjects */}
+      <div className="max-w-4xl mx-auto px-6 py-4">
+        <h2 className="font-display text-lg font-semibold text-stone-900 mb-4 text-center tracking-tight">
+          Learn anything
         </h2>
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {chapters.map((chapter) => (
-            <div
-              key={chapter.number}
-              className="bg-white border border-stone-200 rounded-xl p-5 shadow-soft-sm hover:shadow-soft-md transition-shadow"
+        <div className="flex flex-wrap justify-center gap-3">
+          {[
+            "Machine Learning",
+            "Web Development",
+            "Data Science",
+            "Economics",
+            "Psychology",
+            "Philosophy",
+            "Music Theory",
+            "Creative Writing",
+            "Marketing",
+            "Finance",
+          ].map((subject) => (
+            <Link
+              key={subject}
+              href={`/learn/new?subject=${encodeURIComponent(subject)}`}
+              className="px-4 py-2 bg-white border border-stone-200 rounded-full text-sm text-stone-600 hover:border-teal-300 hover:text-teal-700 hover:bg-teal-50 transition-all"
             >
-              <div className="flex items-center gap-3 mb-2">
-                <span className="w-7 h-7 bg-stone-100 text-stone-600 text-xs font-semibold rounded-lg flex items-center justify-center">
-                  {chapter.number}
-                </span>
-                <h3 className="font-medium text-stone-900 text-sm">{chapter.title}</h3>
-              </div>
-              <p className="text-xs text-stone-500 ml-10">
-                {chapter.topics.length} topics
-              </p>
-            </div>
+              {subject}
+            </Link>
           ))}
         </div>
       </div>
 
       {/* Features */}
-      <div className="max-w-4xl mx-auto px-6 py-4">
+      <div className="max-w-4xl mx-auto px-6 py-8">
         <div className="grid md:grid-cols-2 gap-6">
           <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-6">
             <div className="flex items-center gap-3 mb-3">
@@ -121,7 +135,7 @@ export default function Home() {
               <h3 className="font-medium text-emerald-900">Your progress is saved</h3>
             </div>
             <p className="text-sm text-emerald-700">
-              Come back anytime and continue where you left off. Your entire conversation history is preserved.
+              Come back anytime and continue where you left off. Your entire learning history is preserved.
             </p>
           </div>
           <div className="bg-teal-50 border border-teal-100 rounded-xl p-6">
@@ -134,29 +148,27 @@ export default function Home() {
               <h3 className="font-medium text-teal-900">Active learning</h3>
             </div>
             <p className="text-sm text-teal-700">
-              Instead of just giving answers, I&apos;ll ask you questions to help you truly understand the concepts.
+              Not just answers - guided explanations followed by questions to help you truly understand.
             </p>
           </div>
         </div>
       </div>
 
       {/* CTA */}
-      <div className="max-w-4xl mx-auto px-6 py-6 text-center">
+      <div className="max-w-4xl mx-auto px-6 py-8 text-center">
+        <p className="text-stone-500 mb-4">Ready to start learning?</p>
         <Link
-          href="/study"
-          className="inline-flex items-center gap-2 bg-primary-gradient text-white font-semibold px-8 py-4 rounded-xl text-lg transition-all hover:shadow-lg hover:-translate-y-0.5"
+          href="/learn/new"
+          className="inline-flex items-center justify-center gap-2 bg-primary-gradient text-white font-semibold px-8 py-4 rounded-xl text-lg transition-all hover:shadow-lg hover:-translate-y-0.5"
           style={{ boxShadow: '0 4px 14px rgba(15, 118, 110, 0.25)' }}
         >
-          Start Studying Now
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-          </svg>
+          Create Your Curriculum
         </Link>
       </div>
 
       {/* Footer */}
       <footer className="border-t border-stone-200">
-        <div className="max-w-4xl mx-auto px-6 py-8 flex items-center justify-between text-sm text-stone-500">
+        <div className="max-w-4xl mx-auto px-6 py-8 flex flex-wrap items-center justify-between gap-4 text-sm text-stone-500">
           <div className="flex items-center gap-3">
             <Image
               src="/logo.png"
@@ -165,14 +177,22 @@ export default function Home() {
               height={24}
               className="rounded-md opacity-60"
             />
-            <p>Built for engineering statistics students.</p>
+            <p>AI-powered personalized learning.</p>
           </div>
-          <Link
-            href="/professor"
-            className="text-stone-400 hover:text-teal-600 transition-colors"
-          >
-            For Professors
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link
+              href="/statistics"
+              className="text-stone-400 hover:text-teal-600 transition-colors"
+            >
+              Statistics Course
+            </Link>
+            <Link
+              href="/professor"
+              className="text-stone-400 hover:text-teal-600 transition-colors"
+            >
+              For Professors
+            </Link>
+          </div>
         </div>
       </footer>
     </div>

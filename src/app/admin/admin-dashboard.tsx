@@ -418,7 +418,7 @@ export default function AdminDashboard({ stats, pillarMetrics }: { stats: Stats;
                       </td>
                       <td className="py-3 px-4 text-stone-900 font-medium">{user.messageCount}</td>
                       <td className="py-3 px-4 text-stone-500">
-                        {new Date(user.createdAt).toLocaleDateString()}
+                        {new Date(user.createdAt).toLocaleDateString("en-US", { timeZone: "America/Los_Angeles" })}
                       </td>
                     </tr>
                   ))}

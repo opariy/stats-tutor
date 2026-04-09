@@ -1,9 +1,10 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
 import { getPromptForGroup } from "@/lib/prompts";
-import { db, users, messages, conversations } from "@/lib/db";
-import { eq, sql } from "drizzle-orm";
+import { db, users, messages, conversations, courses, courseChapters, courseTopics, coursePrompts } from "@/lib/db";
+import { eq, sql, asc } from "drizzle-orm";
 import { logApiError } from "@/lib/api-error-logger";
+import { generateSystemPrompt } from "@/lib/prompt-generator";
 
 const anthropic = new Anthropic();
 
@@ -27,11 +28,64 @@ async function getOrCreateUser(sessionId: string, group: "krokyo" | "control") {
   return user;
 }
 
+async function getCourseSystemPrompt(courseId: string): Promise<string | null> {
+  try {
+    // Fetch course with curriculum
+    const course = await db.query.courses.findFirst({
+      where: eq(courses.id, courseId),
+    });
+
+    if (!course) return null;
+
+    // Fetch chapters
+    const chapters = await db.query.courseChapters.findMany({
+      where: eq(courseChapters.courseId, courseId),
+      orderBy: [asc(courseChapters.sortOrder)],
+    });
+
+    // Fetch topics
+    const topics = await db.query.courseTopics.findMany({
+      where: eq(courseTopics.courseId, courseId),
+      orderBy: [asc(courseTopics.sortOrder)],
+    });
+
+    // Fetch prompt
+    const prompt = await db.query.coursePrompts.findFirst({
+      where: eq(coursePrompts.courseId, courseId),
+    });
+
+    // Group topics by chapter
+    const chaptersWithTopics = chapters.map((chapter) => ({
+      ...chapter,
+      topics: topics.filter((t) => t.chapterId === chapter.id),
+    }));
+
+    return generateSystemPrompt({
+      id: course.id,
+      name: course.name,
+      subjectDescription: course.subjectDescription,
+      chapters: chaptersWithTopics,
+      prompt,
+    });
+  } catch (error) {
+    console.error("Failed to get course prompt:", error);
+    return null;
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const { messages: chatMessages, group = "krokyo", sessionId, conversationId } = await request.json();
+    const { messages: chatMessages, group = "krokyo", sessionId, conversationId, courseId } = await request.json();
 
-    const systemPrompt = getPromptForGroup(group as "krokyo" | "control");
+    // Get system prompt - use course-specific if courseId provided, otherwise use group-based
+    let systemPrompt: string;
+    if (courseId) {
+      const coursePrompt = await getCourseSystemPrompt(courseId);
+      systemPrompt = coursePrompt || getPromptForGroup(group as "krokyo" | "control");
+    } else {
+      systemPrompt = getPromptForGroup(group as "krokyo" | "control");
+    }
+
     const startTime = Date.now();
 
     // Get or create user for logging

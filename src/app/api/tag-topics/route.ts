@@ -1,10 +1,40 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, messages, messageTags, conversations } from "@/lib/db";
-import { eq, desc } from "drizzle-orm";
+import { db, messages, messageTags, conversations, courseTopics } from "@/lib/db";
+import { eq, desc, asc } from "drizzle-orm";
 import { allTopics } from "@/lib/topics";
 import Anthropic from "@anthropic-ai/sdk";
 
 const anthropic = new Anthropic();
+
+// Get topics for a course, or fall back to global topics
+async function getTopicsForConversation(conversation: { courseId: string | null }) {
+  if (conversation.courseId) {
+    // Get course-specific topics
+    const topics = await db.query.courseTopics.findMany({
+      where: eq(courseTopics.courseId, conversation.courseId),
+      orderBy: [asc(courseTopics.sortOrder)],
+    });
+    return {
+      isCourse: true,
+      topics: topics.map(t => ({
+        id: t.id, // UUID for course topics
+        slug: t.slug,
+        name: t.name,
+        description: t.description || '',
+      })),
+    };
+  }
+  // Fall back to global topics
+  return {
+    isCourse: false,
+    topics: allTopics.map(t => ({
+      id: t.id,
+      slug: t.id,
+      name: t.name,
+      description: t.description,
+    })),
+  };
+}
 
 // POST /api/tag-topics - Auto-tag recent messages with detected topics
 // Called async after chat exchanges
@@ -14,6 +44,15 @@ export async function POST(request: NextRequest) {
 
     if (!conversationId) {
       return NextResponse.json({ error: "conversationId required" }, { status: 400 });
+    }
+
+    // Get the conversation to check if it's course-based
+    const conversation = await db.query.conversations.findFirst({
+      where: eq(conversations.id, conversationId),
+    });
+
+    if (!conversation) {
+      return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
     }
 
     // Get the last few untagged messages from this conversation
@@ -33,9 +72,12 @@ export async function POST(request: NextRequest) {
       .map((m) => `${m.role}: ${m.content}`)
       .join("\n\n");
 
+    // Get topics for this conversation (course-specific or global)
+    const { isCourse, topics } = await getTopicsForConversation(conversation);
+
     // Get topic list for classification
-    const topicList = allTopics
-      .map((t) => `- ${t.id}: ${t.name} (${t.description})`)
+    const topicList = topics
+      .map((t) => `- ${isCourse ? t.id : t.slug}: ${t.name} (${t.description})`)
       .join("\n");
 
     // Use Claude to classify topics
@@ -76,8 +118,8 @@ Respond with ONLY a JSON array like ["topic-id-1", "topic-id-2"] or []. No expla
       return NextResponse.json({ tagged: 0 });
     }
 
-    // Validate topic IDs
-    const validTopicIds = new Set(allTopics.map((t) => t.id));
+    // Validate topic IDs against available topics
+    const validTopicIds = new Set(topics.map((t) => isCourse ? t.id : t.slug));
     detectedTopics = detectedTopics.filter((id) => validTopicIds.has(id));
 
     if (detectedTopics.length === 0) {
@@ -94,11 +136,22 @@ Respond with ONLY a JSON array like ["topic-id-1", "topic-id-2"] or []. No expla
     let taggedCount = 0;
     for (const topicId of detectedTopics) {
       try {
-        await db.insert(messageTags).values({
-          messageId: userMessage.id,
-          topicId,
-          confidence: 80, // Default confidence for LLM classification
-        });
+        if (isCourse) {
+          // For course topics, use courseTopicId field
+          await db.insert(messageTags).values({
+            messageId: userMessage.id,
+            topicId: '', // Empty for course-based (legacy field)
+            courseTopicId: topicId,
+            confidence: 80,
+          });
+        } else {
+          // For global topics, use topicId field
+          await db.insert(messageTags).values({
+            messageId: userMessage.id,
+            topicId,
+            confidence: 80,
+          });
+        }
         taggedCount++;
       } catch (error) {
         // Likely duplicate, skip
@@ -108,14 +161,16 @@ Respond with ONLY a JSON array like ["topic-id-1", "topic-id-2"] or []. No expla
 
     // Set primary topic on conversation if not already set
     // Use the first (most relevant) detected topic
-    const conversation = await db.query.conversations.findFirst({
-      where: eq(conversations.id, conversationId),
-    });
+    if (!conversation.topicId && detectedTopics.length > 0) {
+      // For course topics, we store the slug in topicId for now
+      // (could be enhanced to use a separate courseTopicId field)
+      const primaryTopicId = isCourse
+        ? topics.find(t => t.id === detectedTopics[0])?.slug || detectedTopics[0]
+        : detectedTopics[0];
 
-    if (conversation && !conversation.topicId && detectedTopics.length > 0) {
       await db
         .update(conversations)
-        .set({ topicId: detectedTopics[0] })
+        .set({ topicId: primaryTopicId })
         .where(eq(conversations.id, conversationId));
     }
 
@@ -124,6 +179,7 @@ Respond with ONLY a JSON array like ["topic-id-1", "topic-id-2"] or []. No expla
       topics: detectedTopics,
       messageId: userMessage.id,
       primaryTopic: detectedTopics[0],
+      isCourse,
     });
   } catch (error) {
     console.error("Topic tagging error:", error);

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, users, conversations, messages, topics } from "@/lib/db";
+import { db, users, conversations, messages, topics, courseTopics } from "@/lib/db";
 import { eq, and, desc, sql, count } from "drizzle-orm";
 import { logApiError } from "@/lib/api-error-logger";
 
@@ -11,14 +11,16 @@ async function getUserFromSession(sessionId: string) {
   });
 }
 
-// GET /api/conversations?sessionId=xxx&topicId=xxx (optional)
+// GET /api/conversations?sessionId=xxx&topicId=xxx&courseId=xxx (optional)
 // - No topicId: return ALL conversations
 // - topicId=general: return only conversations with null topicId
 // - topicId=xyz: return only conversations with that topicId
+// - courseId=xxx: filter by course
 export async function GET(request: NextRequest) {
   try {
     const sessionId = request.nextUrl.searchParams.get("sessionId");
     const topicIdParam = request.nextUrl.searchParams.get("topicId");
+    const courseIdParam = request.nextUrl.searchParams.get("courseId");
 
     if (!sessionId) {
       return NextResponse.json({ conversations: [] });
@@ -38,13 +40,22 @@ export async function GET(request: NextRequest) {
       // Filter for specific topicId
       conditions.push(eq(conversations.topicId, topicIdParam));
     }
-    // If no topicIdParam, return ALL conversations (no additional filter)
+
+    // Filter by courseId if provided
+    if (courseIdParam) {
+      conditions.push(eq(conversations.courseId, courseIdParam));
+    } else {
+      // If no courseId, only show conversations without a course (legacy behavior)
+      conditions.push(sql`${conversations.courseId} IS NULL`);
+    }
 
     // Get conversations with message count and topic name
+    // For course-based conversations, we'll get topic name from courseTopics
     const result = await db
       .select({
         id: conversations.id,
         topicId: conversations.topicId,
+        courseId: conversations.courseId,
         topicName: topics.name,
         title: conversations.title,
         createdAt: conversations.createdAt,
@@ -62,6 +73,7 @@ export async function GET(request: NextRequest) {
       conversations: result.map((c) => ({
         id: c.id,
         topicId: c.topicId,
+        courseId: c.courseId,
         topicName: c.topicName,
         title: c.title,
         createdAt: c.createdAt?.toISOString(),
@@ -87,7 +99,7 @@ export async function GET(request: NextRequest) {
 // POST /api/conversations - Create new conversation
 export async function POST(request: NextRequest) {
   try {
-    const { sessionId, topicId, group = "krokyo" } = await request.json();
+    const { sessionId, topicId, courseId, group = "krokyo" } = await request.json();
 
     if (!sessionId) {
       return NextResponse.json({ error: "sessionId required" }, { status: 400 });
@@ -108,13 +120,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Check for recent conversation to prevent rapid duplicates (within 2 seconds)
-    if (topicId) {
+    if (topicId || courseId) {
+      const conditions = [
+        eq(conversations.userId, user.id),
+        sql`${conversations.createdAt} > NOW() - INTERVAL '2 seconds'`
+      ];
+      if (topicId) conditions.push(eq(conversations.topicId, topicId));
+      if (courseId) conditions.push(eq(conversations.courseId, courseId));
+
       const recentConversation = await db.query.conversations.findFirst({
-        where: and(
-          eq(conversations.userId, user.id),
-          eq(conversations.topicId, topicId),
-          sql`${conversations.createdAt} > NOW() - INTERVAL '2 seconds'`
-        ),
+        where: and(...conditions),
         orderBy: desc(conversations.createdAt),
       });
 
@@ -129,6 +144,7 @@ export async function POST(request: NextRequest) {
       .values({
         userId: user.id,
         topicId: topicId || null,
+        courseId: courseId || null,
         title: "",
       })
       .returning();

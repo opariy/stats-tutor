@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { users, messages, feedback } from "@/lib/db/schema";
+import { users, messages, conversations, feedback, topics } from "@/lib/db/schema";
 import { eq, asc } from "drizzle-orm";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -13,15 +13,27 @@ type MessageWithFeedback = {
   feedback: { rating: string; comment: string | null } | null;
 };
 
-async function getConversation(id: string) {
-  const [user] = await db
-    .select()
-    .from(users)
-    .where(eq(users.id, id));
+async function getChat(id: string) {
+  const [conversation] = await db
+    .select({
+      id: conversations.id,
+      title: conversations.title,
+      topicId: conversations.topicId,
+      topicName: topics.name,
+      userId: conversations.userId,
+      userEmail: users.email,
+      userGroup: users.group,
+      createdAt: conversations.createdAt,
+      updatedAt: conversations.updatedAt,
+    })
+    .from(conversations)
+    .innerJoin(users, eq(conversations.userId, users.id))
+    .leftJoin(topics, eq(conversations.topicId, topics.id))
+    .where(eq(conversations.id, id));
 
-  if (!user) return null;
+  if (!conversation) return null;
 
-  const userMessages = await db
+  const chatMessages = await db
     .select({
       id: messages.id,
       role: messages.role,
@@ -30,28 +42,29 @@ async function getConversation(id: string) {
       createdAt: messages.createdAt,
     })
     .from(messages)
-    .where(eq(messages.userId, id))
+    .where(eq(messages.conversationId, id))
     .orderBy(asc(messages.createdAt));
 
-  const userFeedback = await db
+  const chatFeedback = await db
     .select({
       messageId: feedback.messageId,
       rating: feedback.rating,
       comment: feedback.comment,
     })
     .from(feedback)
-    .where(eq(feedback.userId, id));
+    .innerJoin(messages, eq(feedback.messageId, messages.id))
+    .where(eq(messages.conversationId, id));
 
   const feedbackMap = new Map(
-    userFeedback.map((f) => [f.messageId, { rating: f.rating, comment: f.comment }])
+    chatFeedback.map((f) => [f.messageId, { rating: f.rating, comment: f.comment }])
   );
 
-  const messagesWithFeedback: MessageWithFeedback[] = userMessages.map((msg) => ({
+  const messagesWithFeedback: MessageWithFeedback[] = chatMessages.map((msg) => ({
     ...msg,
     feedback: feedbackMap.get(msg.id) || null,
   }));
 
-  return { user, messages: messagesWithFeedback };
+  return { conversation, messages: messagesWithFeedback };
 }
 
 function formatTime(date: Date) {
@@ -109,7 +122,7 @@ function MessageBubble({ message }: { message: MessageWithFeedback }) {
         </div>
         {message.feedback?.comment && (
           <p className={`text-xs text-stone-500 mt-1 italic ${isUser ? "text-right" : "text-left"}`}>
-            "{message.feedback.comment}"
+            &quot;{message.feedback.comment}&quot;
           </p>
         )}
       </div>
@@ -117,71 +130,80 @@ function MessageBubble({ message }: { message: MessageWithFeedback }) {
   );
 }
 
-export default async function ConversationPage({
+export default async function ChatPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const data = await getConversation(id);
+  const data = await getChat(id);
 
   if (!data) {
     notFound();
   }
 
-  const { user, messages: conversationMessages } = data;
+  const { conversation, messages: chatMessages } = data;
 
   // Group messages by date
-  const messagesByDate = conversationMessages.reduce((acc, msg) => {
+  const messagesByDate = chatMessages.reduce((acc, msg) => {
     const dateKey = formatDate(msg.createdAt);
     if (!acc[dateKey]) acc[dateKey] = [];
     acc[dateKey].push(msg);
     return acc;
   }, {} as Record<string, MessageWithFeedback[]>);
 
-  const thumbsUp = conversationMessages.filter((m) => m.feedback?.rating === "up").length;
-  const thumbsDown = conversationMessages.filter((m) => m.feedback?.rating === "down").length;
+  const thumbsUp = chatMessages.filter((m) => m.feedback?.rating === "up").length;
+  const thumbsDown = chatMessages.filter((m) => m.feedback?.rating === "down").length;
+  const userQuestions = chatMessages.filter((m) => m.role === "user").length;
 
   return (
     <div className="p-8">
       <div className="max-w-4xl">
         <div className="mb-6">
           <Link
-            href="/admin/conversations"
+            href="/admin/chats"
             className="inline-flex items-center gap-2 text-sm text-stone-500 hover:text-stone-700 transition-colors mb-4"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
-            Back to Conversations
+            Back to Chats
           </Link>
-          <h1 className="font-display text-3xl font-bold text-stone-900 tracking-tight">Conversation</h1>
+          <h1 className="font-display text-3xl font-bold text-stone-900 tracking-tight">
+            {conversation.title || "Untitled Chat"}
+          </h1>
+          {conversation.topicName && (
+            <p className="text-stone-500 mt-1">
+              Topic: <span className="font-medium text-blue-600">{conversation.topicName}</span>
+            </p>
+          )}
         </div>
 
-        {/* User Info Card */}
+        {/* Conversation Info Card */}
         <div className="bg-white rounded-xl border border-stone-200 shadow-soft-sm p-6 mb-6">
           <div className="flex flex-wrap items-center gap-6">
             <div>
-              <p className="text-xs text-stone-500 uppercase font-semibold tracking-wider mb-1">User ID</p>
-              <p className="font-mono text-sm text-stone-700">{user.id}</p>
-            </div>
-            <div>
-              <p className="text-xs text-stone-500 uppercase font-semibold tracking-wider mb-1">Email</p>
-              <p className="text-sm text-stone-700">{user.email}</p>
+              <p className="text-xs text-stone-500 uppercase font-semibold tracking-wider mb-1">User</p>
+              <p className="font-mono text-sm text-stone-700">{conversation.userId.slice(0, 8)}...</p>
+              <p className="text-xs text-stone-400">{conversation.userEmail}</p>
             </div>
             <div>
               <p className="text-xs text-stone-500 uppercase font-semibold tracking-wider mb-1">Group</p>
               <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
-                user.group === "krokyo"
+                conversation.userGroup === "krokyo"
                   ? "bg-teal-100 text-teal-700"
                   : "bg-violet-100 text-violet-700"
               }`}>
-                {user.group}
+                {conversation.userGroup}
               </span>
             </div>
             <div>
               <p className="text-xs text-stone-500 uppercase font-semibold tracking-wider mb-1">Messages</p>
-              <p className="text-sm font-semibold text-stone-900">{conversationMessages.length}</p>
+              <p className="text-sm font-semibold text-stone-900">{chatMessages.length}</p>
+            </div>
+            <div>
+              <p className="text-xs text-stone-500 uppercase font-semibold tracking-wider mb-1">Questions</p>
+              <p className="text-sm font-semibold text-stone-900">{userQuestions}</p>
             </div>
             <div>
               <p className="text-xs text-stone-500 uppercase font-semibold tracking-wider mb-1">Feedback</p>
@@ -191,15 +213,15 @@ export default async function ConversationPage({
               </div>
             </div>
             <div>
-              <p className="text-xs text-stone-500 uppercase font-semibold tracking-wider mb-1">Joined</p>
-              <p className="text-sm text-stone-700">{new Date(user.createdAt).toLocaleDateString("en-US", { timeZone: "America/Los_Angeles" })}</p>
+              <p className="text-xs text-stone-500 uppercase font-semibold tracking-wider mb-1">Started</p>
+              <p className="text-sm text-stone-700">{new Date(conversation.createdAt).toLocaleDateString("en-US", { timeZone: "America/Los_Angeles" })}</p>
             </div>
           </div>
         </div>
 
         {/* Messages */}
         <div className="bg-stone-100 rounded-xl p-6">
-          {conversationMessages.length > 0 ? (
+          {chatMessages.length > 0 ? (
             <div className="space-y-6">
               {Object.entries(messagesByDate).map(([date, msgs]) => (
                 <div key={date}>

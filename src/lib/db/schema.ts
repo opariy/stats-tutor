@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean, uuid, integer, serial, unique, index } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, boolean, uuid, integer, serial, unique, index, jsonb } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 export const users = pgTable("users", {
@@ -20,7 +20,8 @@ export const sessions = pgTable("sessions", {
 export const conversations = pgTable("conversations", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: uuid("user_id").references(() => users.id).notNull(),
-  topicId: text("topic_id"),  // null = general/legacy conversation
+  topicId: text("topic_id"),  // null = general/legacy conversation (references global topics)
+  courseId: uuid("course_id"),  // null = legacy/global course, otherwise references courses.id
   title: text("title").notNull().default(''),
   isDemo: boolean("is_demo").default(false),  // true = demo conversation for showcase
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -99,7 +100,8 @@ export const feedbackRelations = relations(feedback, ({ one }) => ({
 export const messageTags = pgTable("message_tags", {
   id: uuid("id").defaultRandom().primaryKey(),
   messageId: uuid("message_id").references(() => messages.id).notNull(),
-  topicId: text("topic_id").notNull(),  // References topics.id
+  topicId: text("topic_id").notNull(),  // References global topics.id (legacy)
+  courseTopicId: uuid("course_topic_id"),  // References course_topics.id (new per-course topics)
   confidence: integer("confidence").default(100),  // 0-100 confidence score
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -156,11 +158,115 @@ export const topicsRelations = relations(topics, ({ one }) => ({
   }),
 }));
 
+// ============================================
+// Per-course curriculum tables (domain-agnostic)
+// ============================================
+
+// Per-course chapters (replaces global chapters for custom courses)
+export const courseChapters = pgTable("course_chapters", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  courseId: uuid("course_id").references(() => courses.id).notNull(),
+  number: integer("number").notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  sortOrder: integer("sort_order").default(0),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  unique("unique_course_chapter").on(table.courseId, table.number),
+  index("idx_course_chapters_course").on(table.courseId),
+]);
+
+// Per-course topics (replaces global topics for custom courses)
+export const courseTopics = pgTable("course_topics", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  courseId: uuid("course_id").references(() => courses.id).notNull(),
+  chapterId: uuid("chapter_id").references(() => courseChapters.id).notNull(),
+  slug: text("slug").notNull(),  // URL-friendly identifier like "hypothesis-testing"
+  name: text("name").notNull(),
+  description: text("description"),
+  suggestions: jsonb("suggestions").$type<string[]>().default([]),  // Starter question prompts
+  sortOrder: integer("sort_order").default(0),
+  isActive: boolean("is_active").default(true),
+  source: text("source", { enum: ["manual", "ai_generated", "material_extracted"] }).default("manual"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  unique("unique_course_topic_slug").on(table.courseId, table.slug),
+  index("idx_course_topics_course").on(table.courseId),
+  index("idx_course_topics_chapter").on(table.chapterId),
+]);
+
+// Course materials (for material-based curriculum generation)
+export const courseMaterials = pgTable("course_materials", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  courseId: uuid("course_id").references(() => courses.id).notNull(),
+  name: text("name").notNull(),
+  type: text("type", { enum: ["pdf", "text"] }).notNull(),
+  blobUrl: text("blob_url"),  // Vercel Blob URL for PDFs
+  textContent: text("text_content"),  // Raw text content
+  processed: boolean("processed").default(false),
+  extractedTopics: jsonb("extracted_topics").$type<Array<{ slug: string; name: string; description: string }>>(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_course_materials_course").on(table.courseId),
+]);
+
+// Per-course system prompts
+export const coursePrompts = pgTable("course_prompts", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  courseId: uuid("course_id").references(() => courses.id).notNull(),
+  name: text("name").default("default").notNull(),  // Allow multiple named prompts per course
+  content: text("content"),  // Custom system prompt content (if null, auto-generate)
+  teachingStyle: text("teaching_style", { enum: ["socratic", "direct", "guided"] }).default("guided"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  unique("unique_course_prompt").on(table.courseId, table.name),
+]);
+
+// Relations for per-course curriculum
+export const courseChaptersRelations = relations(courseChapters, ({ one, many }) => ({
+  course: one(courses, {
+    fields: [courseChapters.courseId],
+    references: [courses.id],
+  }),
+  topics: many(courseTopics),
+}));
+
+export const courseTopicsRelations = relations(courseTopics, ({ one }) => ({
+  course: one(courses, {
+    fields: [courseTopics.courseId],
+    references: [courses.id],
+  }),
+  chapter: one(courseChapters, {
+    fields: [courseTopics.chapterId],
+    references: [courseChapters.id],
+  }),
+}));
+
+export const courseMaterialsRelations = relations(courseMaterials, ({ one }) => ({
+  course: one(courses, {
+    fields: [courseMaterials.courseId],
+    references: [courses.id],
+  }),
+}));
+
+export const coursePromptsRelations = relations(coursePrompts, ({ one }) => ({
+  course: one(courses, {
+    fields: [coursePrompts.courseId],
+    references: [courses.id],
+  }),
+}));
+
 // Topic mastery - tracks when users declare they understand a topic
 export const topicMastery = pgTable("topic_mastery", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: uuid("user_id").references(() => users.id).notNull(),
-  topicId: text("topic_id").notNull(),
+  topicId: text("topic_id").notNull(),  // Global topic ID (legacy)
+  courseTopicId: uuid("course_topic_id"),  // References course_topics.id (new per-course topics)
   conversationId: uuid("conversation_id").references(() => conversations.id),
   declaredAt: timestamp("declared_at").defaultNow().notNull(),
 }, (table) => [
@@ -222,9 +328,14 @@ export const professors = pgTable("professors", {
 // Courses
 export const courses = pgTable("courses", {
   id: uuid("id").defaultRandom().primaryKey(),
-  professorId: uuid("professor_id").references(() => professors.id).notNull(),
+  professorId: uuid("professor_id").references(() => professors.id),  // null for self-serve courses
   name: text("name").notNull(),
   code: text("code").notNull().unique(),
+  // New fields for domain-agnostic tutoring
+  curriculumMode: text("curriculum_mode", { enum: ["auto_generated", "manual", "material_extracted"] }).default("auto_generated"),
+  subjectDescription: text("subject_description"),  // User's description of what they want to learn
+  isSelfServe: boolean("is_self_serve").default(false),  // true = individual learner, false = professor course
+  ownerUserId: uuid("owner_user_id").references(() => users.id),  // for self-serve courses
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -285,8 +396,16 @@ export const coursesRelations = relations(courses, ({ one, many }) => ({
     fields: [courses.professorId],
     references: [professors.id],
   }),
+  owner: one(users, {
+    fields: [courses.ownerUserId],
+    references: [users.id],
+  }),
   enrollments: many(courseEnrollments),
   insights: many(professorInsights),
+  chapters: many(courseChapters),
+  topics: many(courseTopics),
+  materials: many(courseMaterials),
+  prompts: many(coursePrompts),
 }));
 
 export const courseEnrollmentsRelations = relations(courseEnrollments, ({ one }) => ({
@@ -311,3 +430,16 @@ export type Professor = typeof professors.$inferSelect;
 export type Course = typeof courses.$inferSelect;
 export type CourseEnrollment = typeof courseEnrollments.$inferSelect;
 export type ProfessorInsight = typeof professorInsights.$inferSelect;
+
+// Per-course curriculum types
+export type CourseChapter = typeof courseChapters.$inferSelect;
+export type CourseTopic = typeof courseTopics.$inferSelect;
+export type CourseMaterial = typeof courseMaterials.$inferSelect;
+export type CoursePrompt = typeof coursePrompts.$inferSelect;
+
+// Insert types for new tables
+export type NewCourseChapter = typeof courseChapters.$inferInsert;
+export type NewCourseTopic = typeof courseTopics.$inferInsert;
+export type NewCourseMaterial = typeof courseMaterials.$inferInsert;
+export type NewCoursePrompt = typeof coursePrompts.$inferInsert;
+export type NewCourse = typeof courses.$inferInsert;

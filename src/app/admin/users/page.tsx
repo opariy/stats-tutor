@@ -107,7 +107,7 @@ export default async function UsersPage() {
                       </div>
                     </td>
                     <td className="py-4 px-6 text-sm text-stone-500">
-                      {new Date(user.createdAt).toLocaleDateString()}
+                      {new Date(user.createdAt).toLocaleDateString("en-US", { timeZone: "America/Los_Angeles" })}
                     </td>
                     <td className="py-4 px-6">
                       <Link

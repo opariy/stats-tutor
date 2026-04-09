@@ -243,7 +243,7 @@ export default function FeedbackPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-sm text-stone-500">
-                      {new Date(report.createdAt).toLocaleDateString()}
+                      {new Date(report.createdAt).toLocaleDateString("en-US", { timeZone: "America/Los_Angeles" })}
                     </td>
                   </tr>
                 ))}

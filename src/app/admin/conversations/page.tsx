@@ -42,6 +42,7 @@ function formatDate(date: Date | null) {
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "America/Los_Angeles",
   });
 }
 

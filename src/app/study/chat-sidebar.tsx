@@ -14,37 +14,69 @@ type Conversation = {
   messageCount: number;
 };
 
+type CourseChapter = {
+  id: string;
+  number: number;
+  title: string;
+  topics: Array<{
+    id: string;
+    slug: string;
+    name: string;
+  }>;
+};
+
+type TopicProgress = {
+  topicId: string;
+  hasConversation: boolean;
+};
+
 type ChatSidebarProps = {
   sessionId: string;
+  courseId?: string;
+  courseName?: string;
+  courseChapters?: CourseChapter[];
   activeConversationId: string | null;
   onSelectConversation: (conversation: Conversation) => void;
   onNewChat: () => void;
   onDeleteConversation?: (conversationId: string) => void;
+  onStartTopic?: (topicName: string) => void;
+  onChangeDifficulty?: () => void;
 };
 
-type ViewMode = "recent" | "topics";
+type ViewMode = "recent" | "topics" | "curriculum";
 
 export default function ChatSidebar({
   sessionId,
+  courseId,
+  courseName,
+  courseChapters,
   activeConversationId,
   onSelectConversation,
   onNewChat,
   onDeleteConversation,
+  onStartTopic,
+  onChangeDifficulty,
 }: ChatSidebarProps) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [viewMode, setViewMode] = useState<ViewMode>("recent");
+  // Default to curriculum view when in course mode
+  const [viewMode, setViewMode] = useState<ViewMode>(courseId ? "curriculum" : "recent");
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [expandedTopics, setExpandedTopics] = useState<Set<string>>(new Set());
+  const [expandedChapters, setExpandedChapters] = useState<Set<string>>(new Set(["1"])); // First chapter expanded by default
 
-  // Fetch all conversations for this user
+  // Fetch all conversations for this user (filtered by course if applicable)
   useEffect(() => {
     if (!sessionId) return;
 
     const fetchConversations = async () => {
       try {
-        const res = await fetch(`/api/conversations?sessionId=${sessionId}`);
+        const params = new URLSearchParams({ sessionId });
+        if (courseId) {
+          params.set("courseId", courseId);
+        }
+        const res = await fetch(`/api/conversations?${params.toString()}`);
         const data = await res.json();
         setConversations(data.conversations || []);
       } catch (error) {
@@ -55,7 +87,7 @@ export default function ChatSidebar({
     };
 
     fetchConversations();
-  }, [sessionId]);
+  }, [sessionId, courseId]);
 
   // Only show chats with messages
   const chatsWithMessages = conversations.filter((c) => c.messageCount > 0);
@@ -100,6 +132,25 @@ export default function ChatSidebar({
 
     return groups.filter((g) => g.chats.length > 0);
   }, [filteredChats]);
+
+  // Track which topics have been studied (have conversations)
+  const topicProgress = useMemo(() => {
+    const progress = new Map<string, boolean>();
+    chatsWithMessages.forEach((conv) => {
+      if (conv.topicId) {
+        progress.set(conv.topicId, true);
+      }
+    });
+    return progress;
+  }, [chatsWithMessages]);
+
+  // Calculate overall progress
+  const progressStats = useMemo(() => {
+    if (!courseChapters) return { completed: 0, total: 0 };
+    const total = courseChapters.reduce((sum, ch) => sum + ch.topics.length, 0);
+    const completed = topicProgress.size;
+    return { completed, total };
+  }, [courseChapters, topicProgress]);
 
   // Group chats by topic
   const topicGroupedChats = useMemo(() => {
@@ -280,9 +331,16 @@ export default function ChatSidebar({
             height={40}
             className="rounded-xl"
           />
-          <span className="font-display text-xl font-bold text-stone-900 tracking-tight group-hover:text-teal-700 transition-colors">
-            Krokyo
-          </span>
+          <div className="flex flex-col">
+            <span className="font-display text-xl font-bold text-stone-900 tracking-tight group-hover:text-teal-700 transition-colors">
+              Krokyo
+            </span>
+            {courseName && (
+              <span className="text-xs text-stone-500 truncate max-w-[180px]">
+                {courseName}
+              </span>
+            )}
+          </div>
         </Link>
       </div>
 
@@ -324,6 +382,18 @@ export default function ChatSidebar({
 
         {/* View toggle */}
         <div className="flex bg-stone-100 rounded-lg p-1">
+          {courseId && (
+            <button
+              onClick={() => setViewMode("curriculum")}
+              className={`flex-1 text-xs font-medium py-1.5 px-3 rounded-md transition-colors ${
+                viewMode === "curriculum"
+                  ? "bg-white text-stone-900 shadow-sm"
+                  : "text-stone-500 hover:text-stone-700"
+              }`}
+            >
+              Curriculum
+            </button>
+          )}
           <button
             onClick={() => setViewMode("recent")}
             className={`flex-1 text-xs font-medium py-1.5 px-3 rounded-md transition-colors ${
@@ -334,22 +404,138 @@ export default function ChatSidebar({
           >
             Recent
           </button>
-          <button
-            onClick={() => setViewMode("topics")}
-            className={`flex-1 text-xs font-medium py-1.5 px-3 rounded-md transition-colors ${
-              viewMode === "topics"
-                ? "bg-white text-stone-900 shadow-sm"
-                : "text-stone-500 hover:text-stone-700"
-            }`}
-          >
-            By Topic
-          </button>
+          {!courseId && (
+            <button
+              onClick={() => setViewMode("topics")}
+              className={`flex-1 text-xs font-medium py-1.5 px-3 rounded-md transition-colors ${
+                viewMode === "topics"
+                  ? "bg-white text-stone-900 shadow-sm"
+                  : "text-stone-500 hover:text-stone-700"
+              }`}
+            >
+              By Topic
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Chat List */}
+      {/* Chat List / Curriculum View */}
       <div className="flex-1 overflow-y-auto">
-        {isLoading ? (
+        {viewMode === "curriculum" && courseChapters ? (
+          // Curriculum view - show chapters and topics with progress
+          <div className="py-2">
+            {/* Progress bar */}
+            {progressStats.total > 0 && (
+              <div className="px-4 pb-3 mb-2 border-b border-stone-100">
+                <div className="flex items-center justify-between text-xs text-stone-500 mb-1.5">
+                  <span>Progress</span>
+                  <span>{progressStats.completed}/{progressStats.total} topics</span>
+                </div>
+                <div className="h-2 bg-stone-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary-gradient transition-all duration-300"
+                    style={{ width: `${(progressStats.completed / progressStats.total) * 100}%` }}
+                  />
+                </div>
+                {onChangeDifficulty && (
+                  <button
+                    onClick={onChangeDifficulty}
+                    className="mt-2 text-xs text-stone-400 hover:text-teal-600 transition-colors"
+                  >
+                    Too hard? Change difficulty →
+                  </button>
+                )}
+              </div>
+            )}
+            {courseChapters.map((chapter) => {
+              const chapterTopicsDone = chapter.topics.filter(t => topicProgress.has(t.id)).length;
+              const chapterComplete = chapterTopicsDone === chapter.topics.length && chapter.topics.length > 0;
+
+              return (
+                <div key={chapter.id}>
+                  <button
+                    onClick={() => {
+                      setExpandedChapters((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(String(chapter.number))) {
+                          next.delete(String(chapter.number));
+                        } else {
+                          next.add(String(chapter.number));
+                        }
+                        return next;
+                      });
+                    }}
+                    className="w-full px-4 py-2.5 flex items-center gap-2 hover:bg-stone-50 transition-colors"
+                  >
+                    <svg
+                      className={`w-3 h-3 text-stone-400 transition-transform ${
+                        expandedChapters.has(String(chapter.number)) ? "rotate-90" : ""
+                      }`}
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    <span className={`w-6 h-6 text-xs font-semibold rounded flex items-center justify-center ${
+                      chapterComplete
+                        ? "bg-teal-500 text-white"
+                        : "bg-teal-100 text-teal-700"
+                    }`}>
+                      {chapterComplete ? (
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                        </svg>
+                      ) : (
+                        chapter.number
+                      )}
+                    </span>
+                    <span className="text-sm font-medium text-stone-700 truncate flex-1 text-left">
+                      {chapter.title}
+                    </span>
+                    <span className="text-xs text-stone-400">
+                      {chapterTopicsDone}/{chapter.topics.length}
+                    </span>
+                  </button>
+                  {expandedChapters.has(String(chapter.number)) && (
+                    <div className="ml-6 border-l border-stone-200">
+                      {chapter.topics.map((topic) => {
+                        const isDone = topicProgress.has(topic.id);
+                        return (
+                          <button
+                            key={topic.id}
+                            onClick={() => onStartTopic?.(topic.name)}
+                            className="w-full text-left px-4 py-2 flex items-center gap-3 hover:bg-teal-50 transition-colors group"
+                          >
+                            {isDone ? (
+                              <span className="w-4 h-4 rounded-full bg-teal-500 flex items-center justify-center">
+                                <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                </svg>
+                              </span>
+                            ) : (
+                              <span className="w-4 h-4 rounded-full border-2 border-stone-300 group-hover:border-teal-500 transition-colors" />
+                            )}
+                            <span className={`text-sm truncate ${
+                              isDone
+                                ? "text-stone-500"
+                                : "text-stone-600 group-hover:text-teal-700"
+                            }`}>
+                              {topic.name}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : isLoading ? (
           <div className="p-4 text-center text-stone-400 text-sm">Loading...</div>
         ) : filteredChats.length === 0 ? (
           <div className="p-6 text-center">
