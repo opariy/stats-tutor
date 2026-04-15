@@ -63,9 +63,19 @@ export async function generateCurriculum(
 
   const anthropic = new Anthropic();
 
+  const curriculumSystemPrompt = `You are a curriculum designer. Generate well-structured learning curricula with clear progression from foundational to advanced concepts. Always output valid JSON.`;
+
   const response = await anthropic.messages.create({
-    model: "claude-sonnet-4-0",
+    model: "claude-3-5-haiku-20241022", // Use cheaper model for structured generation
     max_tokens: 4000,
+    // Cache the system prompt
+    system: [
+      {
+        type: "text",
+        text: curriculumSystemPrompt,
+        cache_control: { type: "ephemeral" },
+      },
+    ],
     messages: [
       {
         role: "user",
