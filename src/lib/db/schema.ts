@@ -443,3 +443,189 @@ export type NewCourseTopic = typeof courseTopics.$inferInsert;
 export type NewCourseMaterial = typeof courseMaterials.$inferInsert;
 export type NewCoursePrompt = typeof coursePrompts.$inferInsert;
 export type NewCourse = typeof courses.$inferInsert;
+
+// ============================================
+// Knowledge Check System tables
+// ============================================
+
+// Learning objectives - what the student needs to learn per topic
+export const learningObjectives = pgTable("learning_objectives", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  courseTopicId: uuid("course_topic_id").references(() => courseTopics.id).notNull(),
+  objective: text("objective").notNull(),
+  checkMethod: text("check_method", { enum: ["conversational", "quiz_mcq", "quiz_free_text"] }).notNull(),
+  difficulty: text("difficulty", { enum: ["core", "advanced"] }).default("core").notNull(),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_objectives_topic").on(table.courseTopicId),
+]);
+
+// Student progress on individual objectives
+export const studentObjectiveProgress = pgTable("student_objective_progress", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").references(() => users.id).notNull(),
+  objectiveId: uuid("objective_id").references(() => learningObjectives.id).notNull(),
+  status: text("status", { enum: ["not_started", "attempted", "passed", "failed"] }).default("not_started").notNull(),
+  attempts: integer("attempts").default(0).notNull(),
+  lastAttemptAt: timestamp("last_attempt_at"),
+  passedAt: timestamp("passed_at"),
+  conversationId: uuid("conversation_id").references(() => conversations.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  unique("unique_user_objective").on(table.userId, table.objectiveId),
+  index("idx_progress_user").on(table.userId),
+  index("idx_progress_objective").on(table.objectiveId),
+]);
+
+// Quiz results for end-of-topic assessments
+export const topicQuizResults = pgTable("topic_quiz_results", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").references(() => users.id).notNull(),
+  courseTopicId: uuid("course_topic_id").references(() => courseTopics.id).notNull(),
+  quizType: text("quiz_type", { enum: ["end_of_topic", "cross_topic_review"] }).notNull(),
+  questionsJson: jsonb("questions_json").$type<Array<{
+    objectiveId: string;
+    question: string;
+    type: "mcq" | "free_text";
+    options?: string[];
+    correctAnswer?: string;
+  }>>().notNull(),
+  answersJson: jsonb("answers_json").$type<Array<{
+    objectiveId: string;
+    answer: string;
+    isCorrect: boolean;
+  }>>(),
+  score: integer("score"),
+  passed: boolean("passed").default(false),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_quiz_user").on(table.userId),
+  index("idx_quiz_topic").on(table.courseTopicId),
+]);
+
+// Overall topic completion status
+export const studentTopicStatus = pgTable("student_topic_status", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").references(() => users.id).notNull(),
+  courseTopicId: uuid("course_topic_id").references(() => courseTopics.id).notNull(),
+  status: text("status", { enum: ["locked", "in_progress", "quiz_ready", "completed"] }).default("locked").notNull(),
+  coreObjectivesPassed: integer("core_objectives_passed").default(0).notNull(),
+  totalCoreObjectives: integer("total_core_objectives").default(0).notNull(),
+  unlockedAt: timestamp("unlocked_at"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  unique("unique_user_topic_status").on(table.userId, table.courseTopicId),
+  index("idx_status_user").on(table.userId),
+  index("idx_status_topic").on(table.courseTopicId),
+]);
+
+// Relations for Knowledge Check System
+export const learningObjectivesRelations = relations(learningObjectives, ({ one, many }) => ({
+  topic: one(courseTopics, {
+    fields: [learningObjectives.courseTopicId],
+    references: [courseTopics.id],
+  }),
+  progress: many(studentObjectiveProgress),
+}));
+
+export const studentObjectiveProgressRelations = relations(studentObjectiveProgress, ({ one }) => ({
+  user: one(users, {
+    fields: [studentObjectiveProgress.userId],
+    references: [users.id],
+  }),
+  objective: one(learningObjectives, {
+    fields: [studentObjectiveProgress.objectiveId],
+    references: [learningObjectives.id],
+  }),
+  conversation: one(conversations, {
+    fields: [studentObjectiveProgress.conversationId],
+    references: [conversations.id],
+  }),
+}));
+
+export const topicQuizResultsRelations = relations(topicQuizResults, ({ one }) => ({
+  user: one(users, {
+    fields: [topicQuizResults.userId],
+    references: [users.id],
+  }),
+  topic: one(courseTopics, {
+    fields: [topicQuizResults.courseTopicId],
+    references: [courseTopics.id],
+  }),
+}));
+
+export const studentTopicStatusRelations = relations(studentTopicStatus, ({ one }) => ({
+  user: one(users, {
+    fields: [studentTopicStatus.userId],
+    references: [users.id],
+  }),
+  topic: one(courseTopics, {
+    fields: [studentTopicStatus.courseTopicId],
+    references: [courseTopics.id],
+  }),
+}));
+
+// ============================================
+// Prerequisite Gap Detection System
+// ============================================
+
+// Detected prerequisite gaps - when tutor identifies missing foundation knowledge
+export const prerequisiteGaps = pgTable("prerequisite_gaps", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").references(() => users.id).notNull(),
+  courseId: uuid("course_id").references(() => courses.id).notNull(),
+  courseTopicId: uuid("course_topic_id").references(() => courseTopics.id),  // Topic where gap was detected
+  conversationId: uuid("conversation_id").references(() => conversations.id),
+  concept: text("concept").notNull(),  // e.g., "percentages", "basic algebra", "fractions"
+  evidence: text("evidence").notNull(),  // Brief description of what showed the gap
+  severity: text("severity", { enum: ["blocking", "slowing"] }).notNull(),
+  status: text("status", { enum: ["detected", "acknowledged", "resolved", "dismissed"] }).default("detected").notNull(),
+  prerequisiteChapterId: uuid("prerequisite_chapter_id").references(() => courseChapters.id),  // If we added a prereq chapter
+  detectedAt: timestamp("detected_at").defaultNow().notNull(),
+  acknowledgedAt: timestamp("acknowledged_at"),  // When user agreed to add prerequisite
+  resolvedAt: timestamp("resolved_at"),  // When user completed the prerequisite module
+}, (table) => [
+  index("idx_gaps_user").on(table.userId),
+  index("idx_gaps_course").on(table.courseId),
+  index("idx_gaps_status").on(table.status),
+]);
+
+export const prerequisiteGapsRelations = relations(prerequisiteGaps, ({ one }) => ({
+  user: one(users, {
+    fields: [prerequisiteGaps.userId],
+    references: [users.id],
+  }),
+  course: one(courses, {
+    fields: [prerequisiteGaps.courseId],
+    references: [courses.id],
+  }),
+  topic: one(courseTopics, {
+    fields: [prerequisiteGaps.courseTopicId],
+    references: [courseTopics.id],
+  }),
+  conversation: one(conversations, {
+    fields: [prerequisiteGaps.conversationId],
+    references: [conversations.id],
+  }),
+  prerequisiteChapter: one(courseChapters, {
+    fields: [prerequisiteGaps.prerequisiteChapterId],
+    references: [courseChapters.id],
+  }),
+}));
+
+// Types for Knowledge Check System
+export type LearningObjective = typeof learningObjectives.$inferSelect;
+export type StudentObjectiveProgress = typeof studentObjectiveProgress.$inferSelect;
+export type TopicQuizResult = typeof topicQuizResults.$inferSelect;
+export type StudentTopicStatus = typeof studentTopicStatus.$inferSelect;
+export type NewLearningObjective = typeof learningObjectives.$inferInsert;
+export type NewStudentObjectiveProgress = typeof studentObjectiveProgress.$inferInsert;
+export type NewTopicQuizResult = typeof topicQuizResults.$inferInsert;
+export type NewStudentTopicStatus = typeof studentTopicStatus.$inferInsert;
+
+// Types for Prerequisite Gap Detection
+export type PrerequisiteGap = typeof prerequisiteGaps.$inferSelect;
+export type NewPrerequisiteGap = typeof prerequisiteGaps.$inferInsert;

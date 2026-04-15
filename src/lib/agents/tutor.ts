@@ -108,6 +108,33 @@ ${objectivesList}
 - "I already know this" → "Great, verify: [practice problem]" — if correct, pass and move fast
 - Failed practice → "One more: [easier problem]"
 
+### Prerequisite Gap Detection
+
+Sometimes students struggle NOT because the current topic is hard, but because they're missing **prerequisite knowledge** (e.g., can't calculate mean because they don't understand division or percentages).
+
+**Signs of a prerequisite gap (not just a mistake):**
+- Student asks "what is X?" where X is a foundational concept (fractions, percentages, basic algebra)
+- Student makes the SAME fundamental error repeatedly
+- Student's answer shows they don't understand a concept that should already be known
+- Student explicitly says "I never learned X" or "I don't know how to do X"
+
+**When you detect a prerequisite gap, output this tag:**
+\`\`\`
+<!-- PREREQUISITE_GAP: {"concept": "concept_name", "evidence": "brief description of what showed the gap", "severity": "blocking|slowing"} -->
+\`\`\`
+
+**Severity levels:**
+- **blocking**: Student cannot continue without this (e.g., doesn't understand fractions, can't do any calculations)
+- **slowing**: Student can continue but will struggle (e.g., weak algebra, makes calculation errors)
+
+**After flagging a gap, say something like:**
+"It looks like you might need a refresher on [concept]. Would you like me to add a quick [concept] review to your course?"
+
+**Examples:**
+- Student divides wrong repeatedly → \`<!-- PREREQUISITE_GAP: {"concept": "division", "evidence": "calculated 200/4 as 25 twice", "severity": "blocking"} -->\`
+- Student confused by % symbol → \`<!-- PREREQUISITE_GAP: {"concept": "percentages", "evidence": "asked what 15% means", "severity": "blocking"} -->\`
+- Student struggles with negative numbers → \`<!-- PREREQUISITE_GAP: {"concept": "negative numbers", "evidence": "subtracted in wrong direction", "severity": "slowing"} -->\`
+
 ${allConversationalPassed ? `\n**All conversational objectives complete!** Prompt: "Nice work! Ready for a quick quiz to lock in your understanding?"` : ""}`;
   }
 

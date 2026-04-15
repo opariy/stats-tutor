@@ -156,3 +156,102 @@ Return ONLY the JSON, nothing else.`
     throw new Error(`Failed to parse curriculum: ${text.substring(0, 200)}`);
   }
 }
+
+/**
+ * Generate a focused prerequisite module for a specific concept
+ * This creates a single chapter with 2-4 topics to quickly fill a knowledge gap
+ */
+export interface PrerequisiteModule {
+  chapterTitle: string;
+  chapterDescription: string;
+  topics: GeneratedTopic[];
+  estimatedMinutes: number;
+}
+
+export async function generatePrerequisiteModule(
+  concept: string,
+  context: string,  // e.g., "learning statistics" - helps tailor the prerequisite content
+  evidence?: string  // What showed the gap - helps focus the module
+): Promise<PrerequisiteModule> {
+  const anthropic = new Anthropic();
+
+  const systemPrompt = `You are a curriculum designer specializing in prerequisite remediation. Generate focused, efficient review modules that quickly fill knowledge gaps. Always output valid JSON.`;
+
+  const response = await anthropic.messages.create({
+    model: "claude-3-5-haiku-20241022",
+    max_tokens: 2000,
+    system: [
+      {
+        type: "text",
+        text: systemPrompt,
+        cache_control: { type: "ephemeral" },
+      },
+    ],
+    messages: [
+      {
+        role: "user",
+        content: `Generate a focused prerequisite review module for:
+
+Concept: "${concept}"
+Context: Student is ${context}
+${evidence ? `Evidence of gap: ${evidence}` : ''}
+
+Return ONLY valid JSON with this exact structure (no markdown, no code blocks):
+{
+  "chapterTitle": "Quick Review: [Concept Name]",
+  "chapterDescription": "Brief description of what this review covers",
+  "estimatedMinutes": 15,
+  "topics": [
+    {
+      "slug": "topic-slug",
+      "name": "Topic Name",
+      "description": "What this topic covers",
+      "suggestions": ["Practice question 1?", "Practice question 2?"]
+    }
+  ]
+}
+
+Guidelines:
+- Keep it SHORT: 2-4 topics maximum
+- Focus only on what's needed for the main subject
+- Each topic should be completable in 5-10 minutes
+- Include practical practice questions in suggestions
+- Estimated time should be realistic (typically 15-30 minutes total)
+- Make it feel like a "refresher" not a full course
+
+Return ONLY the JSON, nothing else.`
+      }
+    ],
+  });
+
+  const textBlock = response.content[0];
+  if (textBlock.type !== 'text') {
+    throw new Error('Unexpected response type');
+  }
+  const text = textBlock.text.trim();
+
+  let jsonText = text;
+  const codeBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (codeBlockMatch) {
+    jsonText = codeBlockMatch[1].trim();
+  }
+
+  try {
+    const module = JSON.parse(jsonText) as PrerequisiteModule;
+
+    if (!module.chapterTitle || !Array.isArray(module.topics)) {
+      throw new Error('Invalid prerequisite module structure');
+    }
+
+    // Ensure all slugs are valid
+    module.topics = module.topics.map(topic => ({
+      ...topic,
+      slug: topic.slug || slugify(topic.name),
+      suggestions: topic.suggestions || [],
+    }));
+
+    return module;
+  } catch {
+    throw new Error(`Failed to parse prerequisite module: ${text.substring(0, 200)}`);
+  }
+}
