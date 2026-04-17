@@ -1,13 +1,121 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
+import dynamic from "next/dynamic";
 import ChatSidebar from "./chat-sidebar";
+
+// Dynamic import for visualization renderer (heavy dependencies)
+const VisualizationRenderer = dynamic(
+  () => import("@/components/visualizations/VisualizationRenderer"),
+  { ssr: false }
+);
+import TopicQuiz from "./topic-quiz";
 import FeedbackModal from "../components/feedback-modal";
 import MessageFeedbackModal from "../components/message-feedback-modal";
+
+// Check if content between $ signs is actually math (not currency)
+function isActualMath(content: string): boolean {
+  const trimmed = content.trim();
+  // CURRENCY: starts with number like $3, $100, $3.50
+  if (/^\d/.test(trimmed)) return false;
+  // MATH: LaTeX commands, parentheses with letters, equals, operators
+  if (/\\[a-zA-Z]+/.test(content)) return true;
+  if (/[a-zA-Z]\s*\(/.test(content)) return true;
+  if (/[a-zA-Z]\s*=/.test(content) || /=\s*[a-zA-Z]/.test(content)) return true;
+  if (/\d+\s*[a-zA-Z]/.test(content)) return true;
+  if (/[a-zA-Z]\s*[+\-\*\/\^]/.test(content) || /[+\-\*\/\^]\s*[a-zA-Z]/.test(content)) return true;
+  if (/[\^_]/.test(content)) return true;
+  if (/^[a-zA-Z]$/.test(trimmed)) return true;
+  return false;
+}
+
+// Check if content has visualization syntax
+function hasVisualizationSyntax(content: string): boolean {
+  // Check viz blocks and mermaid
+  if (/```viz:\w+/.test(content)) return true;
+  if (/```mermaid/.test(content)) return true;
+  // Check display math
+  if (/\$\$[\s\S]*?\$\$/.test(content)) return true;
+
+  // Check inline math - but only if it's actual math, not currency
+  const inlineMathRegex = /\$([^\$\n]+?)\$/g;
+  let match;
+  while ((match = inlineMathRegex.exec(content)) !== null) {
+    if (isActualMath(match[1])) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// Extract prerequisite gap info from message content
+function extractPrerequisiteGap(content: string): { concept: string; severity: string } | null {
+  const match = content.match(/<!--\s*PREREQUISITE_GAP:\s*({[^}]+})\s*-->/);
+  if (match) {
+    try {
+      const data = JSON.parse(match[1]);
+      return { concept: data.concept, severity: data.severity };
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+// Component to render message content with visualizations or plain markdown
+function MessageContent({ content }: { content: string }) {
+  // Strip any OBJECTIVE_UPDATE and PREREQUISITE_GAP comments before rendering
+  const cleanContent = useMemo(() => {
+    return content
+      .replace(/<!--\s*OBJECTIVE_UPDATE:.*?-->/g, "")
+      .replace(/<!--\s*PREREQUISITE_GAP:.*?-->/g, "")
+      .trim();
+  }, [content]);
+
+  const hasViz = useMemo(() => hasVisualizationSyntax(cleanContent), [cleanContent]);
+
+  if (hasViz) {
+    return <VisualizationRenderer content={cleanContent} />;
+  }
+
+  return (
+    <ReactMarkdown
+      components={{
+        p: ({ children }) => <p className="mb-3 last:mb-0 leading-relaxed whitespace-pre-line">{children}</p>,
+        ul: ({ children }) => <ul className="list-disc ml-4 mb-3">{children}</ul>,
+        ol: ({ children }) => <ol className="list-decimal ml-4 mb-3">{children}</ol>,
+        li: ({ children }) => <li className="mb-1">{children}</li>,
+        strong: ({ children }) => <strong className="font-semibold text-stone-900">{children}</strong>,
+        em: ({ children }) => <em className="italic">{children}</em>,
+        h1: ({ children }) => <h1 className="text-xl font-bold mb-3 text-stone-900">{children}</h1>,
+        h2: ({ children }) => <h2 className="text-lg font-bold mb-2 text-stone-900">{children}</h2>,
+        h3: ({ children }) => <h3 className="text-base font-semibold mb-2 text-stone-800">{children}</h3>,
+        blockquote: ({ children }) => (
+          <blockquote className="border-l-4 border-teal-300 pl-4 my-3 text-stone-600 italic">
+            {children}
+          </blockquote>
+        ),
+        code: ({ children }) => (
+          <code className="bg-teal-50 text-teal-700 px-1.5 py-0.5 rounded text-sm font-mono border border-teal-100">
+            {children}
+          </code>
+        ),
+        pre: ({ children }) => (
+          <pre className="bg-stone-50 p-3 rounded-lg mb-3 overflow-x-auto border border-stone-200">
+            {children}
+          </pre>
+        ),
+      }}
+    >
+      {cleanContent}
+    </ReactMarkdown>
+  );
+}
 
 type Message = {
   role: "user" | "assistant";
@@ -42,6 +150,41 @@ type CourseData = {
       suggestions: string[];
       sortOrder?: number | null;
     }>;
+  }>;
+};
+
+type TopicStatus = {
+  topicId: string;
+  status: "locked" | "in_progress" | "quiz_ready" | "completed";
+  coreObjectivesPassed: number;
+  totalCoreObjectives: number;
+};
+
+type ObjectiveData = {
+  id: string;
+  objective: string;
+  checkMethod: "conversational" | "quiz_mcq" | "quiz_free_text";
+  difficulty: "core" | "advanced";
+  status: "not_started" | "attempted" | "passed" | "failed";
+};
+
+type TopicProgressData = {
+  topicId: string;
+  topicName: string;
+  status: string;
+  coreObjectivesPassed: number;
+  totalCoreObjectives: number;
+  objectives: ObjectiveData[];
+};
+
+type QuizData = {
+  quizId: string;
+  topicName: string;
+  questions: Array<{
+    objectiveId: string;
+    question: string;
+    type: "mcq" | "free_text";
+    options?: string[];
   }>;
 };
 
@@ -110,8 +253,21 @@ export default function StudyChat() {
     rating: "up" | "down";
   } | null>(null);
   const [courseData, setCourseData] = useState<CourseData | null>(null);
+  const [topicStatuses, setTopicStatuses] = useState<TopicStatus[]>([]);
+  const [activeTopicId, setActiveTopicId] = useState<string | null>(null);
+  const [activeTopicProgress, setActiveTopicProgress] = useState<TopicProgressData | null>(null);
+  const [quizData, setQuizData] = useState<QuizData | null>(null);
+  const [showQuiz, setShowQuiz] = useState(false);
   const [courseLoading, setCourseLoading] = useState(false);
   const [autoStarted, setAutoStarted] = useState(false);
+  const [pendingPrerequisite, setPendingPrerequisite] = useState<{
+    concept: string;
+    messageIndex: number;
+    isAdding: boolean;
+  } | null>(null);
+  const [returnToTopicId, setReturnToTopicId] = useState<string | null>(null);
+  const [showReturnPrompt, setShowReturnPrompt] = useState(false);
+  const [returnTopicName, setReturnTopicName] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const autoStartTriggered = useRef(false);
@@ -125,6 +281,16 @@ export default function StudyChat() {
     setGroup(getOrAssignGroup());
     if (!courseId) {
       setExamplePrompts(getRandomPrompts());
+    }
+
+    // Load returnToTopicId from localStorage
+    const savedReturnTopicId = localStorage.getItem("stats-tutor-return-topic-id");
+    const savedReturnTopicName = localStorage.getItem("stats-tutor-return-topic-name");
+    if (savedReturnTopicId) {
+      setReturnToTopicId(savedReturnTopicId);
+    }
+    if (savedReturnTopicName) {
+      setReturnTopicName(savedReturnTopicName);
     }
   }, [courseId]);
 
@@ -174,6 +340,61 @@ export default function StudyChat() {
     loadCourse();
   }, [courseId]);
 
+  // Load topic progress when course and session are available
+  useEffect(() => {
+    if (!courseId || !sessionId) return;
+
+    const loadProgress = async () => {
+      try {
+        const res = await fetch(
+          `/api/progress?sessionId=${encodeURIComponent(sessionId)}&courseId=${courseId}`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          // Transform to TopicStatus array
+          const statuses: TopicStatus[] = data.topics.map((t: TopicProgressData) => ({
+            topicId: t.topicId,
+            status: t.status,
+            coreObjectivesPassed: t.coreObjectivesPassed,
+            totalCoreObjectives: t.totalCoreObjectives,
+          }));
+          setTopicStatuses(statuses);
+        }
+      } catch (error) {
+        console.error("Failed to load progress:", error);
+      }
+    };
+
+    loadProgress();
+  }, [courseId, sessionId, sidebarKey]); // Refresh when sidebar refreshes
+
+  // Load active topic progress when topic changes
+  useEffect(() => {
+    if (!activeTopicId || !sessionId || !courseId) {
+      setActiveTopicProgress(null);
+      return;
+    }
+
+    const loadTopicProgress = async () => {
+      try {
+        const res = await fetch(
+          `/api/progress?sessionId=${encodeURIComponent(sessionId)}&courseId=${courseId}`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          const topicData = data.topics.find((t: TopicProgressData) => t.topicId === activeTopicId);
+          if (topicData) {
+            setActiveTopicProgress(topicData);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load topic progress:", error);
+      }
+    };
+
+    loadTopicProgress();
+  }, [activeTopicId, sessionId, courseId, messages.length]); // Refresh after each message
+
   // Auto-start conversation when course loads (for new learners)
   useEffect(() => {
     // Only auto-start once per course session
@@ -204,6 +425,9 @@ export default function StudyChat() {
         : null;
 
       if (firstTopic) {
+        // Set active topic for objectives tracking
+        setActiveTopicId(firstTopic.id);
+
         // Auto-send a start learning prompt (inline implementation to avoid dependency)
         const autoStart = async () => {
           const messageContent = `I'm ready to start learning! Let's begin with ${firstTopic.name}.`;
@@ -240,6 +464,7 @@ export default function StudyChat() {
                 group,
                 sessionId,
                 conversationId: convId,
+                topicId: firstTopic.id,
                 courseId,
               }),
             });
@@ -406,6 +631,7 @@ export default function StudyChat() {
           sessionId,
           conversationId: convId,
           courseId: courseId || undefined,
+          topicId: activeTopicId || undefined,
         }),
       });
 
@@ -530,9 +756,201 @@ export default function StudyChat() {
   };
 
   // Handle starting a topic from the curriculum
-  const handleStartTopic = (topicName: string) => {
+  const handleStartTopic = (topicName: string, topicId: string) => {
+    setActiveTopicId(topicId);
     handleSend(`Let's learn about ${topicName}.`);
   };
+
+  // Handle starting a quiz
+  const handleStartQuiz = async () => {
+    if (!activeTopicId || !sessionId) return;
+
+    try {
+      const res = await fetch("/api/quiz/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId,
+          topicId: activeTopicId,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.questions && data.questions.length > 0) {
+          setQuizData(data);
+          setShowQuiz(true);
+        } else {
+          alert("No quiz questions available for this topic.");
+        }
+      }
+    } catch (error) {
+      console.error("Failed to generate quiz:", error);
+      alert("Failed to generate quiz. Please try again.");
+    }
+  };
+
+  // Handle quiz completion
+  const handleQuizComplete = async (passed: boolean, score: number) => {
+    setShowQuiz(false);
+    setQuizData(null);
+
+    if (passed && activeTopicId) {
+      // Unlock next topic
+      try {
+        await fetch("/api/progress/unlock", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId,
+            completedTopicId: activeTopicId,
+          }),
+        });
+
+        // Refresh progress
+        setSidebarKey((k) => k + 1);
+      } catch (error) {
+        console.error("Failed to unlock next topic:", error);
+      }
+
+      // Check if there's a return topic (user was doing prerequisite)
+      const savedReturnTopicId = localStorage.getItem("stats-tutor-return-topic-id");
+      if (savedReturnTopicId && savedReturnTopicId !== activeTopicId) {
+        // Show return prompt
+        setShowReturnPrompt(true);
+      }
+    }
+
+    // Refresh topic progress
+    setActiveTopicProgress(null);
+    setSidebarKey((k) => k + 1);
+  };
+
+  // Handle accepting prerequisite module offer
+  const handleAcceptPrerequisite = async (concept: string) => {
+    if (!courseId) return;
+
+    setPendingPrerequisite((prev) =>
+      prev ? { ...prev, isAdding: true } : null
+    );
+
+    try {
+      // Store current topic to return to after prerequisite (in state and localStorage)
+      if (activeTopicId && activeTopicProgress?.topicName) {
+        setReturnToTopicId(activeTopicId);
+        setReturnTopicName(activeTopicProgress.topicName);
+        localStorage.setItem("stats-tutor-return-topic-id", activeTopicId);
+        localStorage.setItem("stats-tutor-return-topic-name", activeTopicProgress.topicName);
+      }
+
+      const res = await fetch(`/api/courses/${courseId}/add-prerequisite`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          concept,
+          evidence: `Detected during conversation`,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+
+        // Reload course data to get the new prerequisite chapter
+        const courseRes = await fetch(`/api/courses/${courseId}`);
+        if (courseRes.ok) {
+          const courseData = await courseRes.json();
+          setCourseData(courseData.course);
+        }
+
+        // Add a system message about the prerequisite being added
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant" as const,
+            content: `I've added a quick "${data.chapter.title}" module to your course (about ${data.estimatedMinutes} minutes). You can find it in the sidebar. After completing it, you'll be better prepared to continue with ${activeTopicProgress?.topicName || "the current topic"}.`,
+          },
+        ]);
+
+        setSidebarKey((k) => k + 1);
+      } else {
+        console.error("Failed to add prerequisite");
+      }
+    } catch (error) {
+      console.error("Error adding prerequisite:", error);
+    } finally {
+      setPendingPrerequisite(null);
+    }
+  };
+
+  // Handle declining prerequisite module offer
+  const handleDeclinePrerequisite = () => {
+    setPendingPrerequisite(null);
+    // Add a message acknowledging the decline
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "assistant" as const,
+        content: "No problem! Let's continue. Feel free to ask if you need clarification on any concepts.",
+      },
+    ]);
+  };
+
+  // Handle returning to original topic after prerequisite
+  const handleReturnToOriginalTopic = () => {
+    const topicId = localStorage.getItem("stats-tutor-return-topic-id");
+    const topicName = localStorage.getItem("stats-tutor-return-topic-name") || "the original topic";
+
+    // Clear the stored return topic
+    localStorage.removeItem("stats-tutor-return-topic-id");
+    localStorage.removeItem("stats-tutor-return-topic-name");
+    setReturnToTopicId(null);
+    setReturnTopicName(null);
+    setShowReturnPrompt(false);
+
+    if (topicId) {
+      // Navigate to the original topic
+      setActiveTopicId(topicId);
+      setMessages([]);
+      setActiveTopicProgress(null);
+
+      // Add welcome back message
+      setMessages([
+        {
+          role: "assistant" as const,
+          content: `Great job completing the prerequisite! Now that you have a stronger foundation, let's continue with "${topicName}". How would you like to proceed?`,
+        },
+      ]);
+    }
+  };
+
+  // Handle staying to continue with more topics
+  const handleStayOnPrerequisite = () => {
+    setShowReturnPrompt(false);
+    // Add a message acknowledging staying
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "assistant" as const,
+        content: "Excellent! Let's continue building your foundation. Would you like to move on to the next topic?",
+      },
+    ]);
+  };
+
+  // Detect prerequisite offers in messages
+  useEffect(() => {
+    if (messages.length === 0) return;
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage.role !== "assistant") return;
+
+    const gap = extractPrerequisiteGap(lastMessage.content);
+    if (gap && !pendingPrerequisite) {
+      setPendingPrerequisite({
+        concept: gap.concept,
+        messageIndex: messages.length - 1,
+        isAdding: false,
+      });
+    }
+  }, [messages, pendingPrerequisite]);
 
   return (
     <div className="flex h-screen bg-stone-50">
@@ -544,12 +962,15 @@ export default function StudyChat() {
           courseId={courseId || undefined}
           courseName={courseData?.name}
           courseChapters={courseData?.chapters}
+          topicStatuses={topicStatuses}
           activeConversationId={activeConversation?.id || null}
           onSelectConversation={handleSelectConversation}
           onNewChat={handleNewChat}
           onDeleteConversation={handleDeleteConversation}
           onStartTopic={handleStartTopic}
           onChangeDifficulty={() => window.location.href = "/learn/new"}
+          activeTopicProgress={activeTopicProgress}
+          onStartQuiz={handleStartQuiz}
         />
       </div>
 
@@ -563,13 +984,66 @@ export default function StudyChat() {
               courseId={courseId || undefined}
               courseName={courseData?.name}
               courseChapters={courseData?.chapters}
+              topicStatuses={topicStatuses}
               activeConversationId={activeConversation?.id || null}
               onSelectConversation={handleSelectConversation}
               onNewChat={handleNewChat}
               onDeleteConversation={handleDeleteConversation}
               onStartTopic={handleStartTopic}
               onChangeDifficulty={() => window.location.href = "/learn/new"}
+              activeTopicProgress={activeTopicProgress}
+              onStartQuiz={handleStartQuiz}
             />
+          </div>
+        </div>
+      )}
+
+      {/* Quiz Modal */}
+      {showQuiz && quizData && (
+        <TopicQuiz
+          quizId={quizData.quizId}
+          topicName={quizData.topicName}
+          questions={quizData.questions}
+          sessionId={sessionId}
+          onComplete={handleQuizComplete}
+          onClose={() => {
+            setShowQuiz(false);
+            setQuizData(null);
+          }}
+        />
+      )}
+
+      {/* Return to Original Topic Modal */}
+      {showReturnPrompt && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full">
+            <div className="p-6 border-b border-stone-200">
+              <h2 className="font-display text-xl font-bold text-stone-900">
+                Ready to Continue?
+              </h2>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-stone-600">
+                Great job completing this prerequisite topic! You now have a stronger foundation.
+              </p>
+              <p className="text-stone-700 font-medium">
+                Would you like to return to &ldquo;{returnTopicName || "your original topic"}&rdquo; or continue with more prerequisite topics?
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                <button
+                  onClick={handleReturnToOriginalTopic}
+                  className="flex-1 px-4 py-3 bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-lg transition-colors"
+                >
+                  Return to {returnTopicName ? `"${returnTopicName}"` : "Original Topic"}
+                </button>
+                <button
+                  onClick={handleStayOnPrerequisite}
+                  className="flex-1 px-4 py-3 bg-stone-100 hover:bg-stone-200 text-stone-700 font-medium rounded-lg transition-colors"
+                >
+                  Continue Here
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -738,36 +1212,27 @@ export default function StudyChat() {
                 const assistantIdx = msg.role === "assistant" ? getAssistantIndex(i) : -1;
                 const feedback = assistantIdx >= 0 ? feedbackGiven[assistantIdx] : undefined;
 
+                // Skip rendering assistant messages with empty content (still streaming)
+                if (msg.role === "assistant" && !msg.content.trim()) {
+                  return null;
+                }
+
                 return (
                   <div key={i} className={`mb-6 ${msg.role === "user" ? "text-right" : ""}`}>
                     {msg.role === "assistant" && (
                       <div className="flex items-start gap-3">
-                        <div className="relative flex-shrink-0 mt-0.5">
-                          <div className="absolute inset-0 bg-primary-gradient rounded-lg scale-110 opacity-80" />
+                        <div className="flex-shrink-0 mt-0.5">
                           <Image
                             src="/logo.png"
                             alt="Krokyo"
                             width={32}
                             height={32}
-                            className="relative rounded-lg"
+                            className="rounded-lg"
                           />
                         </div>
                         <div className="flex flex-col gap-2">
-                          <div className="bg-white rounded-2xl rounded-tl-md px-5 py-3 max-w-[85%] text-sm text-stone-800 border border-stone-200 shadow-soft-sm">
-                            <ReactMarkdown
-                              components={{
-                                p: ({ children }) => <p className="mb-3 last:mb-0 leading-relaxed">{children}</p>,
-                                ul: ({ children }) => <ul className="list-disc ml-4 mb-3">{children}</ul>,
-                                ol: ({ children }) => <ol className="list-decimal ml-4 mb-3">{children}</ol>,
-                                code: ({ children }) => (
-                                  <code className="bg-teal-50 text-teal-700 px-1.5 py-0.5 rounded text-sm font-mono border border-teal-100">
-                                    {children}
-                                  </code>
-                                ),
-                              }}
-                            >
-                              {msg.content}
-                            </ReactMarkdown>
+                          <div className="bg-white rounded-2xl rounded-tl-md px-5 py-3 min-w-[300px] max-w-[85%] w-fit text-sm text-stone-800 border border-stone-200 shadow-soft-sm">
+                            <MessageContent content={msg.content} />
                           </div>
                           {/* Feedback buttons */}
                           <div className="flex gap-1 ml-1">
@@ -824,6 +1289,40 @@ export default function StudyChat() {
                               </svg>
                             </button>
                           </div>
+                          {/* Prerequisite offer accept/decline buttons */}
+                          {pendingPrerequisite && pendingPrerequisite.messageIndex === i && (
+                            <div className="flex gap-2 mt-2 ml-1">
+                              <button
+                                onClick={() => handleAcceptPrerequisite(pendingPrerequisite.concept)}
+                                disabled={pendingPrerequisite.isAdding}
+                                className="px-3 py-1.5 bg-teal-600 text-white text-xs font-medium rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                              >
+                                {pendingPrerequisite.isAdding ? (
+                                  <>
+                                    <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                    </svg>
+                                    Adding...
+                                  </>
+                                ) : (
+                                  <>
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                    </svg>
+                                    Add refresher
+                                  </>
+                                )}
+                              </button>
+                              <button
+                                onClick={handleDeclinePrerequisite}
+                                disabled={pendingPrerequisite.isAdding}
+                                className="px-3 py-1.5 bg-stone-100 text-stone-600 text-xs font-medium rounded-lg hover:bg-stone-200 transition-colors disabled:opacity-50"
+                              >
+                                No thanks
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
@@ -835,24 +1334,19 @@ export default function StudyChat() {
                   </div>
                 );
               })}
-              {isLoading && messages[messages.length - 1]?.role !== "assistant" && (
+              {isLoading && (messages[messages.length - 1]?.role !== "assistant" || !messages[messages.length - 1]?.content.trim()) && (
                 <div className="flex items-start gap-3 mb-6">
-                  <div className="relative flex-shrink-0">
-                    <div className="absolute inset-0 bg-primary-gradient rounded-lg scale-110 opacity-80" />
+                  <div className="flex-shrink-0">
                     <Image
                       src="/logo.png"
                       alt="Krokyo"
                       width={32}
                       height={32}
-                      className="relative rounded-lg"
+                      className="rounded-lg"
                     />
                   </div>
                   <div className="bg-white rounded-2xl rounded-tl-md px-5 py-3 text-sm text-stone-500 border border-stone-200 shadow-soft-sm">
-                    <span className="inline-flex gap-1">
-                      <span className="animate-pulse">•</span>
-                      <span className="animate-pulse" style={{ animationDelay: "150ms" }}>•</span>
-                      <span className="animate-pulse" style={{ animationDelay: "300ms" }}>•</span>
-                    </span>
+                    <span className="animate-pulse">Thinking</span>
                   </div>
                 </div>
               )}
@@ -861,6 +1355,35 @@ export default function StudyChat() {
 
             {/* Input */}
             <div className="border-t border-stone-200 p-5 bg-white">
+              {/* Quick Reply Buttons */}
+              {!isLoading && messages.length > 0 && messages[messages.length - 1]?.role === "assistant" && (
+                <div className="flex flex-wrap gap-2 mb-3 max-w-2xl mx-auto">
+                  <button
+                    onClick={() => handleSend("Give me a real-world example")}
+                    className="px-3 py-1.5 text-xs font-medium bg-stone-50 border border-stone-200 text-stone-600 rounded-full hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700 transition-all"
+                  >
+                    Show example
+                  </button>
+                  <button
+                    onClick={() => handleSend("This is too hard, can you simplify?")}
+                    className="px-3 py-1.5 text-xs font-medium bg-stone-50 border border-stone-200 text-stone-600 rounded-full hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700 transition-all"
+                  >
+                    Too hard
+                  </button>
+                  <button
+                    onClick={() => handleSend("I understand this, let's move on to something harder")}
+                    className="px-3 py-1.5 text-xs font-medium bg-stone-50 border border-stone-200 text-stone-600 rounded-full hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700 transition-all"
+                  >
+                    Too easy
+                  </button>
+                  <button
+                    onClick={() => handleSend("Give me a practice problem")}
+                    className="px-3 py-1.5 text-xs font-medium bg-stone-50 border border-stone-200 text-stone-600 rounded-full hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700 transition-all"
+                  >
+                    Practice
+                  </button>
+                </div>
+              )}
               <div className="flex gap-3 max-w-2xl mx-auto">
                 <input
                   ref={inputRef}

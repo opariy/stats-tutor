@@ -203,7 +203,7 @@ export const courseMaterials = pgTable("course_materials", {
   id: uuid("id").defaultRandom().primaryKey(),
   courseId: uuid("course_id").references(() => courses.id).notNull(),
   name: text("name").notNull(),
-  type: text("type", { enum: ["pdf", "text"] }).notNull(),
+  type: text("type", { enum: ["pdf", "text", "image", "docx"] }).notNull(),
   blobUrl: text("blob_url"),  // Vercel Blob URL for PDFs
   textContent: text("text_content"),  // Raw text content
   processed: boolean("processed").default(false),

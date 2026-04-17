@@ -15,7 +15,7 @@ export interface AgentConfig {
 export const MODEL_IDS: Record<ModelType, string> = {
   opus: "claude-opus-4-20250514",
   sonnet: "claude-sonnet-4-0",
-  haiku: "claude-3-5-haiku-20241022",
+  haiku: "claude-sonnet-4-0", // Haiku deprecated, using Sonnet as fallback
 };
 
 // Agent configurations

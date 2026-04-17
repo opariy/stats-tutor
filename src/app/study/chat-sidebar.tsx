@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import ObjectiveProgress from "./objective-progress";
 
 type Conversation = {
   id: string;
@@ -25,9 +26,33 @@ type CourseChapter = {
   }>;
 };
 
+type TopicStatus = {
+  topicId: string;
+  status: "locked" | "in_progress" | "quiz_ready" | "completed";
+  coreObjectivesPassed: number;
+  totalCoreObjectives: number;
+};
+
 type TopicProgress = {
   topicId: string;
   hasConversation: boolean;
+};
+
+type ObjectiveData = {
+  id: string;
+  objective: string;
+  checkMethod: "conversational" | "quiz_mcq" | "quiz_free_text";
+  difficulty: "core" | "advanced";
+  status: "not_started" | "attempted" | "passed" | "failed";
+};
+
+type TopicProgressData = {
+  topicId: string;
+  topicName: string;
+  status: string;
+  coreObjectivesPassed: number;
+  totalCoreObjectives: number;
+  objectives: ObjectiveData[];
 };
 
 type ChatSidebarProps = {
@@ -35,12 +60,15 @@ type ChatSidebarProps = {
   courseId?: string;
   courseName?: string;
   courseChapters?: CourseChapter[];
+  topicStatuses?: TopicStatus[];
   activeConversationId: string | null;
   onSelectConversation: (conversation: Conversation) => void;
   onNewChat: () => void;
   onDeleteConversation?: (conversationId: string) => void;
-  onStartTopic?: (topicName: string) => void;
+  onStartTopic?: (topicName: string, topicId: string) => void;
   onChangeDifficulty?: () => void;
+  activeTopicProgress?: TopicProgressData | null;
+  onStartQuiz?: () => void;
 };
 
 type ViewMode = "recent" | "topics" | "curriculum";
@@ -50,12 +78,15 @@ export default function ChatSidebar({
   courseId,
   courseName,
   courseChapters,
+  topicStatuses,
   activeConversationId,
   onSelectConversation,
   onNewChat,
   onDeleteConversation,
   onStartTopic,
   onChangeDifficulty,
+  activeTopicProgress,
+  onStartQuiz,
 }: ChatSidebarProps) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -503,29 +534,78 @@ export default function ChatSidebar({
                   {expandedChapters.has(String(chapter.number)) && (
                     <div className="ml-6 border-l border-stone-200">
                       {chapter.topics.map((topic) => {
-                        const isDone = topicProgress.has(topic.id);
+                        const topicStatus = topicStatuses?.find(s => s.topicId === topic.id);
+                        const status = topicStatus?.status || "locked";
+                        const isLocked = status === "locked";
+                        const isCompleted = status === "completed";
+                        const isQuizReady = status === "quiz_ready";
+                        const progressPct = topicStatus?.totalCoreObjectives
+                          ? (topicStatus.coreObjectivesPassed / topicStatus.totalCoreObjectives) * 100
+                          : 0;
+
                         return (
                           <button
                             key={topic.id}
-                            onClick={() => onStartTopic?.(topic.name)}
-                            className="w-full text-left px-4 py-2 flex items-center gap-3 hover:bg-teal-50 transition-colors group"
+                            onClick={() => {
+                              if (!isLocked) {
+                                onStartTopic?.(topic.name, topic.id);
+                              }
+                            }}
+                            disabled={isLocked}
+                            className={`w-full text-left px-4 py-2 flex items-center gap-3 transition-colors group ${
+                              isLocked
+                                ? "opacity-50"
+                                : "hover:bg-teal-50"
+                            }`}
                           >
-                            {isDone ? (
+                            {isCompleted ? (
                               <span className="w-4 h-4 rounded-full bg-teal-500 flex items-center justify-center">
                                 <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                                 </svg>
                               </span>
+                            ) : isLocked ? (
+                              <span className="w-4 h-4 flex items-center justify-center text-stone-400">
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                </svg>
+                              </span>
+                            ) : isQuizReady ? (
+                              <span className="w-4 h-4 rounded-full bg-amber-500 flex items-center justify-center">
+                                <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                </svg>
+                              </span>
                             ) : (
-                              <span className="w-4 h-4 rounded-full border-2 border-stone-300 group-hover:border-teal-500 transition-colors" />
+                              <span className="relative w-4 h-4">
+                                <span className="absolute inset-0 rounded-full border-2 border-stone-300 group-hover:border-teal-500 transition-colors" />
+                                {progressPct > 0 && (
+                                  <svg className="absolute inset-0 w-4 h-4 -rotate-90">
+                                    <circle
+                                      cx="8"
+                                      cy="8"
+                                      r="6"
+                                      fill="none"
+                                      stroke="rgb(20 184 166)"
+                                      strokeWidth="2"
+                                      strokeDasharray={`${(progressPct / 100) * 37.7} 37.7`}
+                                    />
+                                  </svg>
+                                )}
+                              </span>
                             )}
-                            <span className={`text-sm truncate ${
-                              isDone
+                            <span className={`text-sm truncate flex-1 ${
+                              isCompleted
                                 ? "text-stone-500"
+                                : isLocked
+                                ? "text-stone-400"
                                 : "text-stone-600 group-hover:text-teal-700"
                             }`}>
                               {topic.name}
                             </span>
+                            {isQuizReady && (
+                              <span className="text-xs text-amber-600 font-medium">Quiz</span>
+                            )}
                           </button>
                         );
                       })}
@@ -607,6 +687,22 @@ export default function ChatSidebar({
           </div>
         )}
       </div>
+
+      {/* Active Topic Progress - Shown at bottom of sidebar */}
+      {activeTopicProgress &&
+       activeTopicProgress.objectives.length > 0 &&
+       activeTopicProgress.objectives.some(o => o.difficulty === "core") && (
+        <div className="border-t border-stone-200 p-3 bg-stone-50/50">
+          <ObjectiveProgress
+            topicName={activeTopicProgress.topicName}
+            objectives={activeTopicProgress.objectives}
+            compact={true}
+            onStartQuiz={
+              activeTopicProgress.status === "quiz_ready" ? onStartQuiz : undefined
+            }
+          />
+        </div>
+      )}
     </div>
   );
 }

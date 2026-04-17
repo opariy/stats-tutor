@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import type { GeneratedCurriculum } from "@/lib/curriculum-generator";
 
-type Step = "chat" | "generating" | "preview" | "creating";
+type Step = "chat" | "generating" | "creating";
 
 type Message = {
   role: "user" | "assistant";
@@ -20,8 +20,6 @@ export default function NewLearnPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [curriculum, setCurriculum] = useState<GeneratedCurriculum | null>(null);
-  const [courseName, setCourseName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -97,9 +95,8 @@ export default function NewLearnPage() {
             } else if (data.type === "status" && data.status === "generating_curriculum") {
               setStep("generating");
             } else if (data.type === "curriculum") {
-              setCurriculum(data.curriculum);
-              setCourseName(data.curriculum.courseName);
-              setStep("preview");
+              // Auto-create course immediately
+              createCourse(data.curriculum, newMessages);
             } else if (data.type === "error") {
               setError(data.error);
             }
@@ -116,9 +113,7 @@ export default function NewLearnPage() {
     }
   };
 
-  const handleCreate = async () => {
-    if (!curriculum) return;
-
+  const createCourse = async (curriculumData: GeneratedCurriculum, currentMessages: Message[]) => {
     setStep("creating");
     setError(null);
 
@@ -131,16 +126,16 @@ export default function NewLearnPage() {
       }
 
       // Build description from conversation
-      const userMessages = messages.filter((m) => m.role === "user").map((m) => m.content);
+      const userMessages = currentMessages.filter((m) => m.role === "user").map((m) => m.content);
       const description = userMessages.join(". ");
 
       const response = await fetch("/api/learn/create-course", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: courseName,
+          name: curriculumData.courseName,
           subjectDescription: description,
-          curriculum,
+          curriculum: curriculumData,
           sessionId,
         }),
       });
@@ -154,16 +149,8 @@ export default function NewLearnPage() {
       router.push(data.redirectUrl);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
-      setStep("preview");
+      setStep("chat");
     }
-  };
-
-  const handleStartOver = () => {
-    setStep("chat");
-    setMessages([]);
-    setCurriculum(null);
-    setCourseName("");
-    setError(null);
   };
 
   return (
@@ -185,34 +172,11 @@ export default function NewLearnPage() {
       </header>
 
       <div className="max-w-2xl mx-auto px-6 py-8">
-        {/* Step indicator */}
-        <div className="flex items-center justify-center gap-2 mb-6">
-          <div
-            className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-              step === "chat" || step === "generating"
-                ? "bg-primary-gradient text-white"
-                : "bg-stone-200 text-stone-500"
-            }`}
-          >
-            1
-          </div>
-          <div className="w-12 h-0.5 bg-stone-200" />
-          <div
-            className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-              step === "preview" || step === "creating"
-                ? "bg-primary-gradient text-white"
-                : "bg-stone-200 text-stone-500"
-            }`}
-          >
-            2
-          </div>
-        </div>
-
         {/* Chat Step */}
-        {(step === "chat" || step === "generating") && (
-          <div className="bg-white border border-stone-200 rounded-2xl shadow-soft-md overflow-hidden">
+        {(step === "chat" || step === "generating" || step === "creating") && (
+          <div className="bg-white border border-stone-200 rounded-2xl shadow-soft-md overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 220px)', minHeight: '400px', maxHeight: '700px' }}>
             {/* Chat Header */}
-            <div className="px-6 py-4 border-b border-stone-100">
+            <div className="px-6 py-4 border-b border-stone-100 flex-shrink-0">
               <h1 className="font-display text-xl font-bold text-stone-900 tracking-tight">
                 What do you want to learn?
               </h1>
@@ -222,7 +186,7 @@ export default function NewLearnPage() {
             </div>
 
             {/* Messages Area */}
-            <div className="h-[360px] overflow-y-auto px-6 py-4 bg-stone-50/50">
+            <div className="flex-1 overflow-y-auto px-6 py-4 bg-stone-50/50">
               {messages.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center">
                   <div className="relative mb-4">
@@ -259,16 +223,15 @@ export default function NewLearnPage() {
                       key={i}
                       className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                     >
-                      {msg.role === "assistant" && (
+                      {msg.role === "assistant" && msg.content && (
                         <div className="flex items-start gap-2 max-w-[85%]">
-                          <div className="relative flex-shrink-0 mt-0.5">
-                            <div className="absolute inset-0 bg-primary-gradient rounded-lg scale-110 opacity-80" />
+                          <div className="flex-shrink-0 mt-0.5">
                             <Image
                               src="/logo.png"
                               alt="Krokyo"
                               width={28}
                               height={28}
-                              className="relative rounded-lg"
+                              className="rounded-lg"
                             />
                           </div>
                           <div className="bg-white rounded-2xl rounded-tl-md px-4 py-2.5 text-sm text-stone-800 border border-stone-200 shadow-soft-sm">
@@ -291,24 +254,19 @@ export default function NewLearnPage() {
                   ))}
 
                   {/* Loading indicator */}
-                  {isLoading && messages[messages.length - 1]?.role !== "assistant" && (
+                  {isLoading && (messages[messages.length - 1]?.role !== "assistant" || !messages[messages.length - 1]?.content) && (
                     <div className="flex items-start gap-2">
-                      <div className="relative flex-shrink-0">
-                        <div className="absolute inset-0 bg-primary-gradient rounded-lg scale-110 opacity-80" />
+                      <div className="flex-shrink-0">
                         <Image
                           src="/logo.png"
                           alt="Krokyo"
                           width={28}
                           height={28}
-                          className="relative rounded-lg"
+                          className="rounded-lg"
                         />
                       </div>
                       <div className="bg-white rounded-2xl rounded-tl-md px-4 py-2.5 text-sm text-stone-500 border border-stone-200 shadow-soft-sm">
-                        <span className="inline-flex gap-1">
-                          <span className="animate-pulse">.</span>
-                          <span className="animate-pulse" style={{ animationDelay: "150ms" }}>.</span>
-                          <span className="animate-pulse" style={{ animationDelay: "300ms" }}>.</span>
-                        </span>
+                        <span className="animate-pulse">Thinking</span>
                       </div>
                     </div>
                   )}
@@ -333,17 +291,16 @@ export default function NewLearnPage() {
                     </div>
                   )}
 
-                  {/* Generating curriculum indicator */}
-                  {step === "generating" && (
+                  {/* Generating curriculum / Creating course indicator */}
+                  {(step === "generating" || step === "creating") && (
                     <div className="flex items-start gap-2 mt-4">
-                      <div className="relative flex-shrink-0 mt-0.5">
-                        <div className="absolute inset-0 bg-primary-gradient rounded-lg scale-110 opacity-80" />
+                      <div className="flex-shrink-0 mt-0.5">
                         <Image
                           src="/logo.png"
                           alt="Krokyo"
                           width={28}
                           height={28}
-                          className="relative rounded-lg"
+                          className="rounded-lg"
                         />
                       </div>
                       <div className="bg-white rounded-2xl rounded-tl-md px-4 py-3 border border-stone-200 shadow-soft-sm max-w-[85%]">
@@ -367,10 +324,15 @@ export default function NewLearnPage() {
                               d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                             />
                           </svg>
-                          <span className="text-sm font-medium text-stone-800">Generating your curriculum</span>
+                          <span className="text-sm font-medium text-stone-800">
+                            {step === "generating" ? "Generating your curriculum" : "Creating your course"}
+                          </span>
                         </div>
                         <p className="text-xs text-stone-500">
-                          Creating chapters, topics, and practice questions tailored to your level...
+                          {step === "generating"
+                            ? "Creating chapters, topics, and practice questions tailored to your level"
+                            : "Setting up your personalized learning experience"
+                          }
                         </p>
                       </div>
                     </div>
@@ -382,7 +344,7 @@ export default function NewLearnPage() {
             </div>
 
             {/* Input Area */}
-            <div className="px-6 py-4 border-t border-stone-100 bg-white">
+            <div className="px-6 py-4 border-t border-stone-100 bg-white flex-shrink-0">
               {error && (
                 <div className="mb-3 p-3 bg-red-50 border border-red-100 rounded-xl text-red-700 text-sm">
                   {error}
@@ -419,128 +381,6 @@ export default function NewLearnPage() {
           </div>
         )}
 
-        {/* Preview Step */}
-        {(step === "preview" || step === "creating") && curriculum && (
-          <div className="space-y-6">
-            <div className="bg-white border border-stone-200 rounded-2xl p-8 shadow-soft-md">
-              <div className="flex items-center justify-between mb-6">
-                <h1 className="font-display text-2xl font-bold text-stone-900 tracking-tight">
-                  Review Your Curriculum
-                </h1>
-                <button
-                  onClick={handleStartOver}
-                  className="text-sm text-stone-500 hover:text-stone-700"
-                >
-                  ← Start over
-                </button>
-              </div>
-
-              <div className="mb-6">
-                <label
-                  htmlFor="courseName"
-                  className="block text-sm font-medium text-stone-700 mb-2"
-                >
-                  Course name
-                </label>
-                <input
-                  id="courseName"
-                  type="text"
-                  value={courseName}
-                  onChange={(e) => setCourseName(e.target.value)}
-                  className="w-full px-4 py-3 border border-stone-200 rounded-xl text-stone-900 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                  disabled={step === "creating"}
-                />
-              </div>
-
-              <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
-                {curriculum.chapters.map((chapter) => (
-                  <div
-                    key={chapter.number}
-                    className="border border-stone-100 rounded-xl p-4"
-                  >
-                    <div className="flex items-center gap-3 mb-3">
-                      <span className="w-7 h-7 bg-stone-100 text-stone-600 text-xs font-semibold rounded-lg flex items-center justify-center">
-                        {chapter.number}
-                      </span>
-                      <h3 className="font-medium text-stone-900">
-                        {chapter.title}
-                      </h3>
-                    </div>
-                    {chapter.description && (
-                      <p className="text-sm text-stone-500 mb-3 ml-10">
-                        {chapter.description}
-                      </p>
-                    )}
-                    <div className="flex flex-wrap gap-2 ml-10">
-                      {chapter.topics.map((topic) => (
-                        <span
-                          key={topic.slug}
-                          className="px-3 py-1 bg-stone-100 text-stone-600 text-xs rounded-full"
-                        >
-                          {topic.name}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {error && (
-              <div className="p-4 bg-red-50 border border-red-100 rounded-xl text-red-700 text-sm">
-                {error}
-              </div>
-            )}
-
-            <button
-              onClick={handleCreate}
-              disabled={step === "creating" || !courseName.trim()}
-              className="w-full py-4 bg-primary-gradient text-white font-semibold rounded-xl transition-all hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none flex items-center justify-center gap-2"
-            >
-              {step === "creating" ? (
-                <>
-                  <svg
-                    className="animate-spin w-5 h-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    />
-                  </svg>
-                  Creating your course...
-                </>
-              ) : (
-                <>
-                  Start Learning
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M13 7l5 5m0 0l-5 5m5-5H6"
-                    />
-                  </svg>
-                </>
-              )}
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );

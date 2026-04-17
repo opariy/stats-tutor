@@ -90,7 +90,7 @@ export async function POST(request: Request) {
     // Create streaming response with tool use
     // Use Haiku for onboarding (simple Q&A flow) + prompt caching
     const response = await anthropic.messages.create({
-      model: "claude-3-5-haiku-20241022",
+      model: "claude-sonnet-4-0",
       max_tokens: 1024,
       system: [
         {

@@ -202,8 +202,17 @@ async function updateTopicStatusAfterProgress(userId: string, topicId: string): 
       .filter((obj) => obj.checkMethod === "conversational")
       .every((obj) => progressMap.get(obj.id)?.status === "passed");
 
-    let newStatus: "in_progress" | "quiz_ready" = "in_progress";
-    if (allConversationalPassed && coreObjectives.some((obj) => obj.checkMethod !== "conversational")) {
+    const allCoreObjectivesPassed = coreObjectives.every(
+      (obj) => progressMap.get(obj.id)?.status === "passed"
+    );
+
+    let newStatus: "in_progress" | "quiz_ready" | "completed" = "in_progress";
+
+    if (allCoreObjectivesPassed && coreObjectives.length > 0) {
+      // All objectives passed - topic is complete
+      newStatus = "completed";
+    } else if (allConversationalPassed && coreObjectives.some((obj) => obj.checkMethod !== "conversational")) {
+      // All conversational passed but quiz objectives remain
       newStatus = "quiz_ready";
     }
 
@@ -215,16 +224,66 @@ async function updateTopicStatusAfterProgress(userId: string, topicId: string): 
     });
 
     if (existingStatus) {
-      await db
-        .update(studentTopicStatus)
-        .set({
-          status: newStatus,
-          coreObjectivesPassed: passedCount,
-        })
-        .where(eq(studentTopicStatus.id, existingStatus.id));
+      if (newStatus === "completed" && !existingStatus.completedAt) {
+        await db
+          .update(studentTopicStatus)
+          .set({
+            status: newStatus,
+            coreObjectivesPassed: passedCount,
+            completedAt: new Date(),
+          })
+          .where(eq(studentTopicStatus.id, existingStatus.id));
+      } else {
+        await db
+          .update(studentTopicStatus)
+          .set({
+            status: newStatus,
+            coreObjectivesPassed: passedCount,
+          })
+          .where(eq(studentTopicStatus.id, existingStatus.id));
+      }
+
+      // If topic completed, check if it's part of a prerequisite chapter and resolve gaps
+      if (newStatus === "completed") {
+        await resolvePrerequisiteGapsForTopic(userId, topicId);
+      }
     }
   } catch (error) {
     console.error("Failed to update topic status:", error);
+  }
+}
+
+async function resolvePrerequisiteGapsForTopic(userId: string, topicId: string): Promise<void> {
+  try {
+    const topic = await db.query.courseTopics.findFirst({
+      where: eq(courseTopics.id, topicId),
+    });
+
+    if (!topic) return;
+
+    // Find any gaps that have this topic's chapter as the prerequisite chapter
+    const relatedGaps = await db.query.prerequisiteGaps.findMany({
+      where: and(
+        eq(prerequisiteGaps.userId, userId),
+        eq(prerequisiteGaps.prerequisiteChapterId, topic.chapterId),
+        eq(prerequisiteGaps.status, "acknowledged")
+      ),
+    });
+
+    // Mark gaps as resolved
+    for (const gap of relatedGaps) {
+      await db
+        .update(prerequisiteGaps)
+        .set({
+          status: "resolved",
+          resolvedAt: new Date(),
+        })
+        .where(eq(prerequisiteGaps.id, gap.id));
+
+      console.log(`[Prerequisite Gap] Resolved via conversation: ${gap.concept} for user ${userId}`);
+    }
+  } catch (error) {
+    console.error("Failed to resolve prerequisite gaps:", error);
   }
 }
 

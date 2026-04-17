@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, courses, courseChapters, courseTopics, users } from "@/lib/db";
+import { db, courses, courseChapters, courseTopics, users, learningObjectives, studentTopicStatus } from "@/lib/db";
 import { eq } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import type { GeneratedCurriculum } from "@/lib/curriculum-generator";
+import { generateObjectivesForCourse } from "@/lib/objective-generator";
 
 function generateCourseCode(): string {
   // Generate a random 6-character alphanumeric code
@@ -89,6 +90,9 @@ export async function POST(request: NextRequest) {
       ownerUserId: user.id,
     }).returning();
 
+    // Collect all created topics for objective generation
+    const createdTopics: Array<{ id: string; name: string; description: string | null }> = [];
+
     // Create chapters and topics
     for (const chapter of curriculum.chapters) {
       const [createdChapter] = await db.insert(courseChapters).values({
@@ -102,7 +106,7 @@ export async function POST(request: NextRequest) {
       // Create topics for this chapter
       for (let i = 0; i < chapter.topics.length; i++) {
         const topic = chapter.topics[i];
-        await db.insert(courseTopics).values({
+        const [createdTopic] = await db.insert(courseTopics).values({
           courseId: course.id,
           chapterId: createdChapter.id,
           slug: topic.slug,
@@ -111,9 +115,47 @@ export async function POST(request: NextRequest) {
           suggestions: topic.suggestions || [],
           sortOrder: i,
           source: 'ai_generated',
+        }).returning();
+
+        createdTopics.push({
+          id: createdTopic.id,
+          name: createdTopic.name,
+          description: createdTopic.description,
         });
       }
     }
+
+    // Generate learning objectives for all topics (async, don't block response)
+    generateObjectivesForCourse(createdTopics, course.name)
+      .then(async (objectivesMap) => {
+        for (const [topicId, objectives] of objectivesMap) {
+          // Insert objectives for this topic
+          const coreCount = objectives.filter(o => o.difficulty === "core").length;
+
+          for (let i = 0; i < objectives.length; i++) {
+            const obj = objectives[i];
+            await db.insert(learningObjectives).values({
+              courseTopicId: topicId,
+              objective: obj.objective,
+              checkMethod: obj.checkMethod,
+              difficulty: obj.difficulty,
+              sortOrder: i,
+            });
+          }
+
+          // Initialize topic status for the course owner (first topic unlocked, rest locked)
+          const isFirstTopic = createdTopics[0]?.id === topicId;
+          await db.insert(studentTopicStatus).values({
+            userId: user.id,
+            courseTopicId: topicId,
+            status: isFirstTopic ? "in_progress" : "locked",
+            coreObjectivesPassed: 0,
+            totalCoreObjectives: coreCount,
+            unlockedAt: isFirstTopic ? new Date() : null,
+          }).onConflictDoNothing();
+        }
+      })
+      .catch((err) => console.error("Failed to generate objectives:", err));
 
     return NextResponse.json({
       courseId: course.id,

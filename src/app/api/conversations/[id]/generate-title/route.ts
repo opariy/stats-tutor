@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, conversations, messages } from "@/lib/db";
 import { eq, asc } from "drizzle-orm";
-import Anthropic from "@anthropic-ai/sdk";
-
-const anthropic = new Anthropic();
+import { generateTitle } from "@/lib/agents";
 
 // POST /api/conversations/[id]/generate-title - Generate title from conversation content
 export async function POST(
@@ -43,35 +41,19 @@ export async function POST(
       return NextResponse.json({ title: "", skipped: true });
     }
 
-    // Combine messages into context
-    const messageContext = recentMessages
-      .map((m) => `${m.role}: ${m.content}`)
-      .join("\n\n");
+    // Get first user and assistant messages
+    const firstUserMsg = recentMessages.find((m) => m.role === "user");
+    const firstAssistantMsg = recentMessages.find((m) => m.role === "assistant");
 
-    // Use Claude to generate a short title
-    const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-0",
-      max_tokens: 50,
-      messages: [
-        {
-          role: "user",
-          content: `Generate a very short title (3-6 words max) for this statistics tutoring conversation. The title should describe what the student is asking about. Return ONLY the title, no quotes, no explanation.
-
-CONVERSATION:
-${messageContext}
-
-Title:`,
-        },
-      ],
-    });
-
-    // Parse the response
-    const content = response.content[0];
-    if (content.type !== "text") {
-      return NextResponse.json({ title: "", error: "No text response" });
+    if (!firstUserMsg) {
+      return NextResponse.json({ title: "", skipped: true });
     }
 
-    const title = content.text.trim().slice(0, 100); // Cap at 100 chars
+    // Use Title Generator agent
+    const title = await generateTitle(
+      firstUserMsg.content,
+      firstAssistantMsg?.content
+    );
 
     // Update conversation title
     await db

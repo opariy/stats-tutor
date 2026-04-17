@@ -38,25 +38,59 @@ export default function Home() {
         <p className="text-xl text-stone-600 mb-8 max-w-2xl mx-auto">
           Describe what you want to learn. AI generates a personalized curriculum and guides you through it step by step.
         </p>
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto">
+          {/* Start Learning */}
           <Link
             href="/learn/new"
-            className="inline-flex items-center justify-center gap-2 bg-primary-gradient text-white font-semibold px-8 py-4 rounded-xl text-lg transition-all hover:shadow-lg hover:-translate-y-0.5"
-            style={{ boxShadow: '0 4px 14px rgba(15, 118, 110, 0.25)' }}
+            className="group bg-white border border-stone-200 rounded-xl p-6 text-center transition-all hover:border-teal-300 hover:shadow-soft-md hover:-translate-y-0.5"
           >
-            Start Learning
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-            </svg>
+            <div className="w-12 h-12 bg-primary-gradient text-white rounded-xl flex items-center justify-center mx-auto mb-4 shadow-soft-sm">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+            </div>
+            <h3 className="font-display font-semibold text-stone-900 mb-1 group-hover:text-teal-700 transition-colors">
+              Start Learning
+            </h3>
+            <p className="text-sm text-stone-500">
+              Describe what you want to learn
+            </p>
           </Link>
+
+          {/* Test My Knowledge */}
           <Link
             href="/assess/new"
-            className="inline-flex items-center justify-center gap-2 bg-white border-2 border-stone-200 text-stone-700 font-semibold px-8 py-4 rounded-xl text-lg transition-all hover:border-teal-300 hover:text-teal-700 hover:bg-teal-50/50"
+            className="group bg-white border border-stone-200 rounded-xl p-6 text-center transition-all hover:border-teal-300 hover:shadow-soft-md hover:-translate-y-0.5"
           >
-            Test My Knowledge
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+            <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-soft-sm">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h3 className="font-display font-semibold text-stone-900 mb-1 group-hover:text-teal-700 transition-colors">
+              Test My Knowledge
+            </h3>
+            <p className="text-sm text-stone-500">
+              Check what you already know
+            </p>
+          </Link>
+
+          {/* Exam Prep */}
+          <Link
+            href="/learn/exam-prep"
+            className="group bg-white border border-stone-200 rounded-xl p-6 text-center transition-all hover:border-teal-300 hover:shadow-soft-md hover:-translate-y-0.5"
+          >
+            <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-soft-sm">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <h3 className="font-display font-semibold text-stone-900 mb-1 group-hover:text-teal-700 transition-colors">
+              Exam Prep
+            </h3>
+            <p className="text-sm text-stone-500">
+              Upload your curriculum files
+            </p>
           </Link>
         </div>
       </div>

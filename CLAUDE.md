@@ -35,3 +35,25 @@ Key routing rules:
 - Architecture review → invoke plan-eng-review
 - Save progress, checkpoint, resume → invoke checkpoint
 - Code quality, health check → invoke health
+
+## Don't guess, verify
+
+When asked to list something (skills, files, options, features, etc.):
+1. Check the actual source (tool definitions, codebase, docs) - don't type from memory
+2. If unsure the list is complete, say so and verify before answering
+3. Never give partial lists when complete information is available
+
+## TypeScript errors
+
+When running typecheck and errors appear:
+1. Fix errors in files you touched - don't just report them
+2. For pre-existing errors in other files, ask "want me to fix these too?" or fix if they're blocking
+3. Never claim "all checks pass" when there are errors - be precise: "no errors in files I modified"
+
+## Efficient edits
+
+Avoid wasteful token usage when editing:
+1. Read the file structure BEFORE editing - place new code in the correct location the first time
+2. When moving code, do it in ONE edit if the old and new locations are close enough to fit in a single old_string
+3. If moving code requires two edits (locations too far apart), state "moving this in two steps" - don't pretend they're unrelated changes
+4. Never remove code then re-add the same code elsewhere as two separate "fixes"
