@@ -58,19 +58,19 @@ export async function POST(
     let insertSortOrder = 0;
     if (insertAfterChapterId) {
       const afterChapter = existingChapters.find(c => c.id === insertAfterChapterId);
-      if (afterChapter) {
+      if (afterChapter && afterChapter.sortOrder !== null) {
         insertSortOrder = afterChapter.sortOrder + 1;
       }
     }
 
     // Shift existing chapters down to make room
     for (const chapter of existingChapters) {
-      if (chapter.sortOrder >= insertSortOrder) {
+      if ((chapter.sortOrder ?? 0) >= insertSortOrder) {
         await db
           .update(courseChapters)
           .set({
-            sortOrder: chapter.sortOrder + 1,
-            number: chapter.number + 1,
+            sortOrder: (chapter.sortOrder ?? 0) + 1,
+            number: (chapter.number ?? 0) + 1,
           })
           .where(eq(courseChapters.id, chapter.id));
       }
