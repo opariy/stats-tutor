@@ -71,8 +71,8 @@ export default function ScatterPlot({
             label={yLabel ? { value: yLabel, angle: -90, position: "insideLeft" } : undefined}
           />
           <Tooltip
-            formatter={(value: number, name: string) => [
-              formatNumber(value),
+            formatter={(value, name) => [
+              formatNumber(typeof value === 'number' ? value : 0),
               name === "y" ? "Value" : "Predicted",
             ]}
             labelFormatter={(label) => `x = ${label}`}

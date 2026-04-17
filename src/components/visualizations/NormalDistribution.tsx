@@ -63,7 +63,7 @@ export default function NormalDistribution({
             tickFormatter={(v) => v.toFixed(2)}
           />
           <Tooltip
-            formatter={(value: number) => [value.toFixed(4), "Density"]}
+            formatter={(value) => [typeof value === 'number' ? value.toFixed(4) : '0', "Density"]}
             labelFormatter={(label) => `x = ${label}`}
           />
 

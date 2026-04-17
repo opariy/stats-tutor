@@ -75,8 +75,8 @@ export default function Histogram({
             label={yLabel ? { value: yLabel, angle: -90, position: "insideLeft" } : undefined}
           />
           <Tooltip
-            formatter={(value: number, name: string) => [
-              value,
+            formatter={(value, name) => [
+              value ?? 0,
               name === "count" ? "Count" : "Normal",
             ]}
           />
