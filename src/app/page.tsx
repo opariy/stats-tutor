@@ -197,6 +197,12 @@ export default function Home() {
           </div>
           <div className="flex items-center gap-4">
             <Link
+              href="/demo"
+              className="text-stone-400 hover:text-teal-600 transition-colors"
+            >
+              Demo
+            </Link>
+            <Link
               href="/statistics"
               className="text-stone-400 hover:text-teal-600 transition-colors"
             >
