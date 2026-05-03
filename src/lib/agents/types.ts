@@ -56,4 +56,16 @@ export const AGENTS: Record<string, AgentConfig> = {
     maxTokens: 64,
     temperature: 0.5,
   },
+  studentSimulator: {
+    name: "Student Simulator",
+    model: "haiku",
+    maxTokens: 256,
+    temperature: 0.8,  // Higher temp for natural variation
+  },
+  tutorJudge: {
+    name: "Tutor Judge",
+    model: "sonnet",  // Sonnet for nuanced evaluation
+    maxTokens: 1024,
+    temperature: 0.3,  // Low temp for consistent judgments
+  },
 };

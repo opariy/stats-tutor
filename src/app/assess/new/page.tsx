@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -9,17 +9,34 @@ import { computeResults, type AssessmentResult } from "@/lib/assessment-types";
 
 type Phase = "setup" | "quiz" | "results";
 
+const ACCEPTED_TYPES = {
+  "application/pdf": [".pdf"],
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
+  "application/msword": [".doc"],
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation": [".pptx"],
+  "application/vnd.ms-powerpoint": [".ppt"],
+  "text/plain": [".txt"],
+  "text/markdown": [".md"],
+  "image/png": [".png"],
+  "image/jpeg": [".jpg", ".jpeg"],
+  "image/webp": [".webp"],
+  "image/gif": [".gif"],
+};
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_FILES = 5;
+
 export default function AssessmentPage() {
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>("setup");
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Setup state - single field for exam/curriculum
+  // Setup state
   const [examInput, setExamInput] = useState("");
   const [questionCount, setQuestionCount] = useState<5 | 10 | 15>(10);
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [isExtractingPdf, setIsExtractingPdf] = useState(false);
+  const [files, setFiles] = useState<File[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Quiz state
@@ -32,66 +49,115 @@ export default function AssessmentPage() {
   const [results, setResults] = useState<AssessmentResult | null>(null);
   const [isCreatingCourse, setIsCreatingCourse] = useState(false);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const validateFile = (file: File): string | null => {
+    if (file.size > MAX_FILE_SIZE) {
+      return `${file.name} is too large. Maximum size is 10MB.`;
+    }
+    const validTypes = Object.keys(ACCEPTED_TYPES);
+    const validExtensions = Object.values(ACCEPTED_TYPES).flat();
+    const extension = "." + file.name.split(".").pop()?.toLowerCase();
+    if (!validTypes.includes(file.type) && !validExtensions.includes(extension)) {
+      return `${file.name} is not a supported file type.`;
+    }
+    return null;
+  };
 
-    if (file.type !== "application/pdf" && !file.name.endsWith(".pdf")) {
-      setError("Please upload a PDF file");
+  const handleFiles = useCallback((newFiles: FileList | File[]) => {
+    const fileArray = Array.from(newFiles);
+    for (const file of fileArray) {
+      const err = validateFile(file);
+      if (err) {
+        setError(err);
+        return;
+      }
+    }
+    if (files.length + fileArray.length > MAX_FILES) {
+      setError(`You can only upload up to ${MAX_FILES} files.`);
       return;
     }
-
-    setUploadedFile(file);
-    setIsExtractingPdf(true);
     setError(null);
+    setFiles((prev) => [...prev, ...fileArray]);
+  }, [files.length]);
 
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
+  const removeFile = (index: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
+  };
 
-      const response = await fetch("/api/assess/extract-pdf", {
-        method: "POST",
-        body: formData,
-      });
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
 
-      if (!response.ok) {
-        throw new Error("Failed to extract text from PDF");
-      }
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  }, []);
 
-      const data = await response.json();
-      if (data.text) {
-        setExamInput((prev) =>
-          prev ? `${prev}\n\n${data.text}` : data.text
-        );
-      }
-    } catch (err) {
-      console.error("PDF extraction error:", err);
-      setError("Failed to extract text from PDF. You can manually paste the content instead.");
-      setUploadedFile(null);
-    } finally {
-      setIsExtractingPdf(false);
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    handleFiles(e.dataTransfer.files);
+  }, [handleFiles]);
+
+  const getFileIcon = (file: File) => {
+    const name = file.name.toLowerCase();
+    const type = file.type;
+    if (type === "application/pdf" || name.endsWith(".pdf")) {
+      return <span className="text-red-500 text-xs font-bold">PDF</span>;
     }
+    if (name.endsWith(".docx") || name.endsWith(".doc")) {
+      return <span className="text-blue-500 text-xs font-bold">DOC</span>;
+    }
+    if (name.endsWith(".pptx") || name.endsWith(".ppt")) {
+      return <span className="text-orange-500 text-xs font-bold">PPT</span>;
+    }
+    if (type.startsWith("image/")) {
+      return <span className="text-purple-500 text-xs font-bold">IMG</span>;
+    }
+    return <span className="text-stone-400 text-xs font-bold">TXT</span>;
   };
 
   const handleStartQuiz = async () => {
-    if (!examInput.trim()) return;
+    if (!examInput.trim() && files.length === 0) return;
 
     setIsGenerating(true);
     setError(null);
 
-    // Detect if input is short (exam name) or long (curriculum)
-    const input = examInput.trim();
-    const isShortInput = input.length < 100 && !input.includes("\n");
-
     try {
+      // Extract text from files first
+      let extractedText = examInput.trim();
+
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const extractResponse = await fetch("/api/learn/extract-content", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!extractResponse.ok) {
+          throw new Error(`Failed to extract content from ${file.name}`);
+        }
+
+        const extractData = await extractResponse.json();
+        if (extractData.text) {
+          extractedText = extractedText
+            ? `${extractedText}\n\n--- ${file.name} ---\n${extractData.text}`
+            : extractData.text;
+        }
+      }
+
+      // Detect if input is short (exam name) or long (curriculum)
+      const isShortInput = extractedText.length < 100 && !extractedText.includes("\n");
+
       const response = await fetch("/api/assess", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "generate",
-          // If short, treat as exam name; if long, treat as curriculum
-          examName: isShortInput ? input : "Practice Quiz",
-          curriculum: isShortInput ? null : input,
+          examName: isShortInput ? extractedText : "Practice Quiz",
+          curriculum: isShortInput ? null : extractedText,
           questionCount,
         }),
       });
@@ -283,7 +349,7 @@ export default function AssessmentPage() {
             </div>
 
             <div className="p-6 space-y-5">
-              {/* Single input for exam/curriculum */}
+              {/* Text input for exam name or pasted content */}
               <div>
                 <label className="block text-sm font-medium text-stone-700 mb-2">
                   What do you want to practice?
@@ -291,54 +357,81 @@ export default function AssessmentPage() {
                 <textarea
                   value={examInput}
                   onChange={(e) => setExamInput(e.target.value)}
+                  onDrop={(e) => {
+                    if (e.dataTransfer?.files?.length) {
+                      e.preventDefault();
+                      handleFiles(e.dataTransfer.files);
+                    }
+                  }}
                   placeholder="Type your exam name (e.g., &quot;STAT 101 Final&quot;) or paste your syllabus/curriculum..."
                   className="w-full border border-stone-200 rounded-xl px-4 py-3 text-stone-900 placeholder-stone-400 focus:outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-600/10 text-sm bg-stone-50 transition-all resize-none"
-                  rows={5}
+                  rows={4}
                   autoFocus
                 />
-
-                {/* PDF Upload */}
-                <div className="mt-3 flex items-center gap-3">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".pdf,application/pdf"
-                    onChange={handleFileUpload}
-                    className="hidden"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isExtractingPdf}
-                    className="inline-flex items-center gap-2 px-4 py-2 text-sm text-stone-600 bg-stone-100 hover:bg-stone-200 rounded-lg transition-colors disabled:opacity-50"
-                  >
-                    {isExtractingPdf ? (
-                      <>
-                        <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                        </svg>
-                        Extracting...
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                        </svg>
-                        Upload PDF
-                      </>
-                    )}
-                  </button>
-                  {uploadedFile && (
-                    <span className="text-xs text-stone-500 flex items-center gap-1">
-                      <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      {uploadedFile.name}
-                    </span>
-                  )}
-                </div>
               </div>
+
+              {/* File Upload Area */}
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all ${
+                  isDragging
+                    ? "border-teal-400 bg-teal-50"
+                    : "border-stone-200 hover:border-teal-300 hover:bg-stone-50"
+                }`}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept={Object.entries(ACCEPTED_TYPES)
+                    .flatMap(([type, exts]) => [type, ...exts])
+                    .join(",")}
+                  onChange={(e) => e.target.files && handleFiles(e.target.files)}
+                  className="hidden"
+                />
+                <div className="flex items-center justify-center gap-2 text-stone-600">
+                  <svg className="w-5 h-5 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  <span className="text-sm">Drop files or click to browse</span>
+                </div>
+                <p className="text-xs text-stone-400 mt-1">
+                  PDF, DOC, DOCX, PPT, PPTX, TXT, images
+                </p>
+              </div>
+
+              {/* File List */}
+              {files.length > 0 && (
+                <div className="space-y-2">
+                  {files.map((file, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center gap-3 p-3 bg-stone-50 rounded-lg border border-stone-100"
+                    >
+                      <div className="w-8 h-8 bg-white rounded flex items-center justify-center border border-stone-200">
+                        {getFileIcon(file)}
+                      </div>
+                      <span className="flex-1 text-sm text-stone-700 truncate">
+                        {file.name}
+                      </span>
+                      <span className="text-xs text-stone-400">
+                        {(file.size / 1024).toFixed(0)} KB
+                      </span>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); removeFile(index); }}
+                        className="p-1 text-stone-400 hover:text-red-500 transition-colors"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* Question count */}
               <div>
@@ -371,7 +464,7 @@ export default function AssessmentPage() {
               {/* Start button */}
               <button
                 onClick={handleStartQuiz}
-                disabled={!examInput.trim() || isGenerating}
+                disabled={(!examInput.trim() && files.length === 0) || isGenerating}
                 className="w-full py-4 bg-primary-gradient text-white font-semibold rounded-xl transition-all hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none flex items-center justify-center gap-2"
               >
                 {isGenerating ? (

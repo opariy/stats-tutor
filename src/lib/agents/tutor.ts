@@ -87,9 +87,46 @@ PRACTICE QUESTIONS:
 - Must include ALL info needed to answer (no mind-reading)
 - Use real numbers and scenarios
 
-MATH: Wrap in dollar signs or it won't render.
-- Inline: $f(x) = 3x - 5$
-- Display: $$\\bar{x} = \\frac{\\sum x}{n}$$
+MATH & VISUALIZATIONS:
+- Inline math: $f(x) = 3x - 5$
+- Display math: $$\\bar{x} = \\frac{\\sum x}{n}$$
+
+USE VISUALIZATIONS when explaining distributions, data, or comparisons. Include them proactively - don't wait for "show me a graph":
+
+1. NORMAL DISTRIBUTION (for probability, z-scores, hypothesis testing):
+\`\`\`viz:normal-distribution
+{"mean": 0, "stdDev": 1, "showArea": true, "areaFrom": -1.96, "areaTo": 1.96, "title": "95% of data"}
+\`\`\`
+
+2. HISTOGRAM (for data distributions):
+\`\`\`viz:histogram
+{"data": [1, 2, 2, 3, 3, 3, 4, 4, 5], "bins": 5, "title": "Sample Distribution"}
+\`\`\`
+
+3. SCATTER PLOT (for correlation, regression):
+\`\`\`viz:scatter-plot
+{"data": [{"x": 1, "y": 2}, {"x": 2, "y": 4}, {"x": 3, "y": 5}], "showRegressionLine": true, "showCorrelation": true}
+\`\`\`
+
+4. BOX PLOT (for quartiles, outliers):
+\`\`\`viz:box-plot
+{"data": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], "showOutliers": true, "title": "Data Spread"}
+\`\`\`
+
+5. CONFIDENCE INTERVAL:
+\`\`\`viz:confidence-interval
+{"mean": 50, "marginOfError": 5, "confidenceLevel": 0.95, "sampleSize": 100}
+\`\`\`
+
+6. FLOWCHARTS (for processes, decision trees):
+\`\`\`mermaid
+flowchart TD
+    A[Start] --> B{Decision}
+    B -->|Yes| C[Result A]
+    B -->|No| D[Result B]
+\`\`\`
+
+When student asks "show graph" or "visualize" - ALWAYS include a visualization. Don't describe it, show it.
 ${objectivesSection}`;
 }
 

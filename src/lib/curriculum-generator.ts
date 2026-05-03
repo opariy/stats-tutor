@@ -67,7 +67,7 @@ export async function generateCurriculum(
 
   const response = await anthropic.messages.create({
     model: "claude-sonnet-4-0", // Use cheaper model for structured generation
-    max_tokens: 4000,
+    max_tokens: 8192,
     // Cache the system prompt
     system: [
       {

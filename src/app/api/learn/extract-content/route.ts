@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { extractText } from "unpdf";
 import mammoth from "mammoth";
+import officeparser from "officeparser";
 import Anthropic from "@anthropic-ai/sdk";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_TEXT_LENGTH = 50000; // 50K chars
 
-type FileType = "pdf" | "text" | "image" | "docx";
+type FileType = "pdf" | "text" | "image" | "docx" | "doc" | "pptx" | "ppt";
 
 interface ExtractionResult {
   text: string;
@@ -26,6 +27,18 @@ function getFileType(file: File): FileType | null {
     name.endsWith(".docx")
   ) {
     return "docx";
+  }
+  if (type === "application/msword" || name.endsWith(".doc")) {
+    return "doc";
+  }
+  if (
+    type === "application/vnd.openxmlformats-officedocument.presentationml.presentation" ||
+    name.endsWith(".pptx")
+  ) {
+    return "pptx";
+  }
+  if (type === "application/vnd.ms-powerpoint" || name.endsWith(".ppt")) {
+    return "ppt";
   }
   if (type.startsWith("image/") || /\.(png|jpg|jpeg|gif|webp|bmp)$/i.test(name)) {
     return "image";
@@ -61,6 +74,20 @@ async function extractFromDocx(file: File): Promise<string> {
 async function extractFromText(file: File): Promise<string> {
   const text = await file.text();
   return cleanText(text);
+}
+
+async function extractFromDoc(file: File): Promise<string> {
+  const bytes = await file.arrayBuffer();
+  const buffer = Buffer.from(bytes);
+  const result = await officeparser.parseOffice(buffer);
+  return cleanText(String(result));
+}
+
+async function extractFromPptx(file: File): Promise<string> {
+  const bytes = await file.arrayBuffer();
+  const buffer = Buffer.from(bytes);
+  const result = await officeparser.parseOffice(buffer);
+  return cleanText(String(result));
 }
 
 async function extractFromImage(file: File): Promise<string> {
@@ -137,7 +164,7 @@ export async function POST(request: NextRequest) {
     const fileType = getFileType(file);
     if (!fileType) {
       return NextResponse.json(
-        { error: "Unsupported file type. Please upload PDF, DOCX, TXT, or image files." },
+        { error: "Unsupported file type. Please upload PDF, DOC, DOCX, PPT, PPTX, TXT, or image files." },
         { status: 400 }
       );
     }
@@ -150,6 +177,13 @@ export async function POST(request: NextRequest) {
         break;
       case "docx":
         extractedText = await extractFromDocx(file);
+        break;
+      case "doc":
+        extractedText = await extractFromDoc(file);
+        break;
+      case "pptx":
+      case "ppt":
+        extractedText = await extractFromPptx(file);
         break;
       case "text":
         extractedText = await extractFromText(file);

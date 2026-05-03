@@ -38,7 +38,7 @@ export default function Home() {
         <p className="text-xl text-stone-600 mb-8 max-w-2xl mx-auto">
           Describe what you want to learn. AI generates a personalized curriculum and guides you through it step by step.
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl mx-auto">
           {/* Start Learning */}
           <Link
             href="/learn/new"
@@ -53,11 +53,11 @@ export default function Home() {
               Start Learning
             </h3>
             <p className="text-sm text-stone-500">
-              Describe what you want to learn
+              Describe a topic or upload materials
             </p>
           </Link>
 
-          {/* Test My Knowledge */}
+          {/* Pass or Fail */}
           <Link
             href="/assess/new"
             className="group bg-white border border-stone-200 rounded-xl p-6 text-center transition-all hover:border-teal-300 hover:shadow-soft-md hover:-translate-y-0.5"
@@ -68,28 +68,10 @@ export default function Home() {
               </svg>
             </div>
             <h3 className="font-display font-semibold text-stone-900 mb-1 group-hover:text-teal-700 transition-colors">
-              Test My Knowledge
+              Pass or Fail
             </h3>
             <p className="text-sm text-stone-500">
-              Check what you already know
-            </p>
-          </Link>
-
-          {/* Exam Prep */}
-          <Link
-            href="/learn/exam-prep"
-            className="group bg-white border border-stone-200 rounded-xl p-6 text-center transition-all hover:border-teal-300 hover:shadow-soft-md hover:-translate-y-0.5"
-          >
-            <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-soft-sm">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-            <h3 className="font-display font-semibold text-stone-900 mb-1 group-hover:text-teal-700 transition-colors">
-              Exam Prep
-            </h3>
-            <p className="text-sm text-stone-500">
-              Upload your curriculum files
+              Test what you already know
             </p>
           </Link>
         </div>

@@ -75,7 +75,10 @@ type OnboardingMessage = {
 
 export async function POST(request: Request) {
   try {
-    const { messages } = await request.json() as { messages: OnboardingMessage[] };
+    const { messages, forceGenerate } = await request.json() as {
+      messages: OnboardingMessage[];
+      forceGenerate?: boolean;
+    };
 
     if (!messages || !Array.isArray(messages)) {
       return Response.json({ error: "Messages array required" }, { status: 400 });
@@ -87,6 +90,11 @@ export async function POST(request: Request) {
       content: m.content
     }));
 
+    // If forceGenerate is true, add instruction to generate immediately
+    const systemPrompt = forceGenerate
+      ? `${SYSTEM_PROMPT}\n\nIMPORTANT: The user has already provided all necessary information. Call generate_curriculum immediately with the information provided. Do not ask any more questions.`
+      : SYSTEM_PROMPT;
+
     // Create streaming response with tool use
     // Use Haiku for onboarding (simple Q&A flow) + prompt caching
     const response = await anthropic.messages.create({
@@ -95,12 +103,14 @@ export async function POST(request: Request) {
       system: [
         {
           type: "text",
-          text: SYSTEM_PROMPT,
+          text: systemPrompt,
           cache_control: { type: "ephemeral" },
         },
       ],
       tools: [TOOL_DEFINITION],
       messages: anthropicMessages,
+      // Force tool use when forceGenerate is true
+      ...(forceGenerate && { tool_choice: { type: "tool" as const, name: "generate_curriculum" } }),
       stream: true
     });
 
