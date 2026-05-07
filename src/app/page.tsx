@@ -13,6 +13,7 @@ export default function Home() {
             width={40}
             height={40}
             className="rounded-xl"
+            style={{ height: 'auto' }}
           />
           <span className="font-display text-xl font-bold text-stone-900 tracking-tight group-hover:text-teal-700 transition-colors">
             Krokyo
@@ -30,6 +31,7 @@ export default function Home() {
             width={80}
             height={80}
             className="relative rounded-2xl shadow-soft-md"
+            style={{ height: 'auto' }}
           />
         </div>
         <h1 className="font-display text-5xl font-bold text-stone-900 mb-4 tracking-tight">
@@ -77,44 +79,48 @@ export default function Home() {
         </div>
       </div>
 
-      {/* How it works */}
-      <div className="max-w-4xl mx-auto px-6 py-8">
-        <div className="bg-white border border-stone-200 rounded-2xl p-8 shadow-soft-md">
-          <h2 className="font-display text-xl font-semibold text-stone-900 mb-6 text-center tracking-tight">
-            How it works
-          </h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="text-center">
-              <div className="w-12 h-12 bg-primary-gradient text-white rounded-xl flex items-center justify-center mx-auto mb-4 font-display font-semibold shadow-soft-sm">
-                1
-              </div>
-              <h3 className="font-medium text-stone-900 mb-2">Describe your goal</h3>
-              <p className="text-sm text-stone-500">Tell me what you want to learn - any subject, any level</p>
+      {/* How it works - timeline layout */}
+      <div className="max-w-4xl mx-auto px-6 py-12">
+        <h2 className="font-display text-2xl font-semibold text-stone-900 mb-8 tracking-tight">
+          How it works
+        </h2>
+        <div className="space-y-6">
+          <div className="flex gap-4 items-start">
+            <div className="flex-shrink-0 w-8 h-8 bg-teal-700 text-white rounded-lg flex items-center justify-center text-sm font-semibold">
+              1
             </div>
-            <div className="text-center">
-              <div className="w-12 h-12 bg-primary-gradient text-white rounded-xl flex items-center justify-center mx-auto mb-4 font-display font-semibold shadow-soft-sm">
-                2
-              </div>
-              <h3 className="font-medium text-stone-900 mb-2">Get a curriculum</h3>
-              <p className="text-sm text-stone-500">AI generates chapters and topics tailored to your needs</p>
+            <div>
+              <h3 className="font-medium text-stone-900 mb-1">Describe your goal</h3>
+              <p className="text-stone-600">Tell me what you want to learn — any subject, any level. Upload your syllabus or just describe the topic.</p>
             </div>
-            <div className="text-center">
-              <div className="w-12 h-12 bg-primary-gradient text-white rounded-xl flex items-center justify-center mx-auto mb-4 font-display font-semibold shadow-soft-sm">
-                3
-              </div>
-              <h3 className="font-medium text-stone-900 mb-2">Learn interactively</h3>
-              <p className="text-sm text-stone-500">Work through topics with guided explanations and practice</p>
+          </div>
+          <div className="flex gap-4 items-start">
+            <div className="flex-shrink-0 w-8 h-8 bg-teal-700 text-white rounded-lg flex items-center justify-center text-sm font-semibold">
+              2
+            </div>
+            <div>
+              <h3 className="font-medium text-stone-900 mb-1">Get a curriculum</h3>
+              <p className="text-stone-600">AI generates chapters and topics tailored to your needs. Each section builds on what came before.</p>
+            </div>
+          </div>
+          <div className="flex gap-4 items-start">
+            <div className="flex-shrink-0 w-8 h-8 bg-teal-700 text-white rounded-lg flex items-center justify-center text-sm font-semibold">
+              3
+            </div>
+            <div>
+              <h3 className="font-medium text-stone-900 mb-1">Learn interactively</h3>
+              <p className="text-stone-600">Work through topics with guided explanations, practice problems, and questions that check your understanding.</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Example subjects */}
-      <div className="max-w-4xl mx-auto px-6 py-4">
-        <h2 className="font-display text-lg font-semibold text-stone-900 mb-4 text-center tracking-tight">
+      <div className="max-w-4xl mx-auto px-6 py-8">
+        <h2 className="font-display text-2xl font-semibold text-stone-900 mb-6 tracking-tight">
           Learn anything
         </h2>
-        <div className="flex flex-wrap justify-center gap-3">
+        <div className="flex flex-wrap gap-3">
           {[
             "Machine Learning",
             "Web Development",
@@ -130,7 +136,7 @@ export default function Home() {
             <Link
               key={subject}
               href={`/learn/new?subject=${encodeURIComponent(subject)}`}
-              className="px-4 py-2 bg-white border border-stone-200 rounded-full text-sm text-stone-600 hover:border-teal-300 hover:text-teal-700 hover:bg-teal-50 transition-all"
+              className="px-4 py-3 bg-white border border-stone-200 rounded-full text-sm text-stone-600 hover:border-teal-300 hover:text-teal-700 hover:bg-teal-50 transition-all"
             >
               {subject}
             </Link>
@@ -192,25 +198,26 @@ export default function Home() {
               width={24}
               height={24}
               className="rounded-md opacity-60"
+              style={{ height: 'auto' }}
             />
             <p>AI-powered personalized learning.</p>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
             <Link
               href="/demo"
-              className="text-stone-400 hover:text-teal-600 transition-colors"
+              className="px-3 py-2 text-stone-400 hover:text-teal-600 transition-colors"
             >
               Demo
             </Link>
             <Link
               href="/statistics"
-              className="text-stone-400 hover:text-teal-600 transition-colors"
+              className="px-3 py-2 text-stone-400 hover:text-teal-600 transition-colors"
             >
               Statistics Course
             </Link>
             <Link
               href="/professor"
-              className="text-stone-400 hover:text-teal-600 transition-colors"
+              className="px-3 py-2 text-stone-400 hover:text-teal-600 transition-colors"
             >
               For Professors
             </Link>
