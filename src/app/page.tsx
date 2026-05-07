@@ -184,7 +184,7 @@ export default function Home() {
           className="inline-flex items-center justify-center gap-2 bg-primary-gradient text-white font-semibold px-8 py-4 rounded-xl text-lg transition-all hover:shadow-lg hover:-translate-y-0.5"
           style={{ boxShadow: '0 4px 14px rgba(15, 118, 110, 0.25)' }}
         >
-          Create Your Curriculum
+          Start Learning
         </Link>
       </div>
 
