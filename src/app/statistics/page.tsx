@@ -14,6 +14,7 @@ export default function StatisticsPage() {
             width={40}
             height={40}
             className="rounded-xl"
+            style={{ height: 'auto' }}
           />
           <span className="font-display text-xl font-bold text-stone-900 tracking-tight group-hover:text-teal-700 transition-colors">
             Krokyo
@@ -31,6 +32,7 @@ export default function StatisticsPage() {
             width={80}
             height={80}
             className="relative rounded-2xl shadow-soft-md"
+            style={{ height: 'auto' }}
           />
         </div>
         <h1 className="font-display text-4xl font-bold text-stone-900 mb-3 tracking-tight">
@@ -53,7 +55,7 @@ export default function StatisticsPage() {
 
       {/* Topics covered */}
       <div className="max-w-4xl mx-auto px-6 pt-6 pb-4">
-        <h2 className="font-display text-xl font-semibold text-stone-900 mb-4 text-center tracking-tight">
+        <h2 className="font-display text-2xl font-semibold text-stone-900 mb-6 tracking-tight">
           Topics Covered
         </h2>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -130,19 +132,20 @@ export default function StatisticsPage() {
               width={24}
               height={24}
               className="rounded-md opacity-60"
+              style={{ height: 'auto' }}
             />
             <p>Built for engineering statistics students.</p>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
             <Link
               href="/"
-              className="text-stone-400 hover:text-teal-600 transition-colors"
+              className="px-3 py-2 text-stone-400 hover:text-teal-600 transition-colors"
             >
               Learn Any Subject
             </Link>
             <Link
               href="/professor"
-              className="text-stone-400 hover:text-teal-600 transition-colors"
+              className="px-3 py-2 text-stone-400 hover:text-teal-600 transition-colors"
             >
               For Professors
             </Link>
