@@ -455,6 +455,7 @@ export default function NewLearnPage() {
             width={40}
             height={40}
             className="rounded-xl"
+            style={{ height: 'auto' }}
           />
           <span className="font-display text-xl font-bold text-stone-900 tracking-tight group-hover:text-teal-700 transition-colors">
             Krokyo
@@ -662,7 +663,7 @@ export default function NewLearnPage() {
                     {msg.role === "assistant" && msg.content && (
                       <div className="flex items-start gap-2 max-w-[85%]">
                         <div className="flex-shrink-0 mt-0.5">
-                          <Image src="/logo.png" alt="Krokyo" width={28} height={28} className="rounded-lg" />
+                          <Image src="/logo.png" alt="Krokyo" width={28} height={28} className="rounded-lg" style={{ height: 'auto' }} />
                         </div>
                         <div className="bg-white rounded-2xl rounded-tl-md px-4 py-2.5 text-sm text-stone-800 border border-stone-200 shadow-soft-sm">
                           <ReactMarkdown
@@ -687,7 +688,7 @@ export default function NewLearnPage() {
                 {isLoading && (messages[messages.length - 1]?.role !== "assistant" || !messages[messages.length - 1]?.content) && (
                   <div className="flex items-start gap-2">
                     <div className="flex-shrink-0">
-                      <Image src="/logo.png" alt="Krokyo" width={28} height={28} className="rounded-lg" />
+                      <Image src="/logo.png" alt="Krokyo" width={28} height={28} className="rounded-lg" style={{ height: 'auto' }} />
                     </div>
                     <div className="bg-white rounded-2xl rounded-tl-md px-4 py-2.5 text-sm text-stone-500 border border-stone-200 shadow-soft-sm">
                       <span className="animate-pulse">Thinking</span>
