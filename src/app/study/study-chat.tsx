@@ -14,6 +14,7 @@ const VisualizationRenderer = dynamic(
   { ssr: false }
 );
 import TopicQuiz from "./topic-quiz";
+import Flashcards from "./flashcards";
 import FeedbackModal from "../components/feedback-modal";
 import MessageFeedbackModal from "../components/message-feedback-modal";
 
@@ -258,6 +259,7 @@ export default function StudyChat() {
   const [activeTopicProgress, setActiveTopicProgress] = useState<TopicProgressData | null>(null);
   const [quizData, setQuizData] = useState<QuizData | null>(null);
   const [showQuiz, setShowQuiz] = useState(false);
+  const [showFlashcards, setShowFlashcards] = useState(false);
   const [courseLoading, setCourseLoading] = useState(false);
   const [autoStarted, setAutoStarted] = useState(false);
   const [pendingPrerequisite, setPendingPrerequisite] = useState<{
@@ -1010,6 +1012,16 @@ export default function StudyChat() {
             setShowQuiz(false);
             setQuizData(null);
           }}
+        />
+      )}
+
+      {/* Flashcards Modal */}
+      {showFlashcards && activeTopicProgress && (
+        <Flashcards
+          topicName={activeTopicProgress.topicName}
+          topicId={activeTopicProgress.topicId}
+          courseContext={courseData?.name}
+          onClose={() => setShowFlashcards(false)}
         />
       )}
 

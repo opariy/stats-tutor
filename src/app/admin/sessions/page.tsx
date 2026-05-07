@@ -146,9 +146,9 @@ export default async function SessionsPage() {
         </div>
 
         {/* Sessions Table */}
-        <div className="bg-white rounded-xl border border-stone-200 shadow-soft-sm overflow-hidden">
+        <div className="bg-white rounded-xl border border-stone-200 shadow-soft-sm overflow-x-auto">
           {sessions.length > 0 ? (
-            <table className="w-full">
+            <table className="w-full min-w-[900px]">
               <thead>
                 <tr className="border-b border-stone-200 bg-stone-50">
                   <th className="text-left py-4 px-6 text-xs text-stone-500 font-semibold uppercase tracking-wider">User</th>
